@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { relations, sql, type InferSelectModel } from "drizzle-orm";
 import { index, pgTableCreator, primaryKey } from "drizzle-orm/pg-core";
 import type { AdapterAccount } from "next-auth/adapters";
 
@@ -9,27 +9,6 @@ import type { AdapterAccount } from "next-auth/adapters";
  * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
  */
 export const createTable = pgTableCreator((name) => `arma-timer_${name}`);
-
-// export const posts = createTable(
-// 	"post",
-// 	(d) => ({
-// 		id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
-// 		name: d.varchar({ length: 256 }),
-// 		createdById: d
-// 			.varchar({ length: 255 })
-// 			.notNull()
-// 			.references(() => users.id),
-// 		createdAt: d
-// 			.timestamp({ withTimezone: true })
-// 			.default(sql`CURRENT_TIMESTAMP`)
-// 			.notNull(),
-// 		updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
-// 	}),
-// 	(t) => [
-// 		index("created_by_idx").on(t.createdById),
-// 		index("name_idx").on(t.name),
-// 	],
-// );
 
 export const users = createTable("user", (d) => ({
 	id: d
@@ -52,6 +31,8 @@ export const usersRelations = relations(users, ({ many }) => ({
 	accounts: many(accounts),
 }));
 
+export type User = InferSelectModel<typeof users>;
+
 export const accounts = createTable(
 	"account",
 	(d) => ({
@@ -59,7 +40,10 @@ export const accounts = createTable(
 			.varchar({ length: 255 })
 			.notNull()
 			.references(() => users.id),
-		type: d.varchar({ length: 255 }).$type<AdapterAccount["type"]>().notNull(),
+		type: d
+			.varchar({ length: 255 })
+			.$type<AdapterAccount["type"]>()
+			.notNull(),
 		provider: d.varchar({ length: 255 }).notNull(),
 		providerAccountId: d.varchar({ length: 255 }).notNull(),
 		refresh_token: d.text(),
@@ -77,18 +61,26 @@ export const accounts = createTable(
 );
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
-	user: one(users, { fields: [accounts.userId], references: [users.id] }),
+	user: one(users, {
+		fields: [accounts.userId],
+		references: [users.id]
+	}),
 }));
 
 export const sessions = createTable(
 	"session",
 	(d) => ({
-		sessionToken: d.varchar({ length: 255 }).notNull().primaryKey(),
+		sessionToken: d
+			.varchar({ length: 255 })
+			.notNull()
+			.primaryKey(),
 		userId: d
 			.varchar({ length: 255 })
 			.notNull()
 			.references(() => users.id),
-		expires: d.timestamp({ mode: "date", withTimezone: true }).notNull(),
+		expires: d
+			.timestamp({ mode: "date", withTimezone: true })
+			.notNull(),
 	}),
 	(t) => [index("t_user_id_idx").on(t.userId)],
 );
@@ -102,7 +94,130 @@ export const verificationTokens = createTable(
 	(d) => ({
 		identifier: d.varchar({ length: 255 }).notNull(),
 		token: d.varchar({ length: 255 }).notNull(),
-		expires: d.timestamp({ mode: "date", withTimezone: true }).notNull(),
+		expires: d
+			.timestamp({ mode: "date", withTimezone: true })
+			.notNull(),
 	}),
 	(t) => [primaryKey({ columns: [t.identifier, t.token] })],
 );
+
+export const guilds = createTable(
+	"guild",
+	(d) => ({
+		id: d
+			.varchar({ length: 255 })
+			.notNull()
+			.primaryKey()
+			.references(() => users.id, {
+				onDelete: 'cascade',
+				onUpdate: 'cascade'
+			}),
+		name: d.varchar({ length: 256 }).notNull(),
+		createdAt: d
+			.timestamp({ withTimezone: true })
+			.default(sql`CURRENT_TIMESTAMP`)
+			.notNull(),
+		updatedAt: d
+			.timestamp({ withTimezone: true })
+			.$onUpdate(() => new Date()),
+	}),
+);
+
+export const guildsRelations = relations(guilds, ({ one, many }) => ({
+	owner: one(users, {
+		fields: [guilds.id],
+		references: [users.id],
+	}),
+	teams: many(teams),
+	players: many(players),
+}));
+
+export type Guild = InferSelectModel<typeof guilds>;
+
+export const teams = createTable(
+	"team",
+	(d) => ({
+		id: d
+			.varchar({ length: 255 })
+			.notNull()
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		name: d.varchar({ length: 256 }).notNull(),
+		guildId: d
+			.varchar({ length: 255 })
+			.notNull()
+			.references(() => guilds.id, {
+				onDelete: 'cascade',
+				onUpdate: 'cascade'
+			}),
+		createdAt: d
+			.timestamp({ withTimezone: true })
+			.default(sql`CURRENT_TIMESTAMP`)
+			.notNull(),
+		updatedAt: d
+			.timestamp({ withTimezone: true })
+			.$onUpdate(() => new Date()),
+	}),
+	(t) => [
+		index("team_guild_idx").on(t.guildId),
+	],
+);
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+	guild: one(guilds, {
+		fields: [teams.guildId],
+		references: [guilds.id],
+	}),
+	players: many(players),
+}));
+
+export type Team = InferSelectModel<typeof teams>;
+
+export const players = createTable(
+	"player",
+	(d) => ({
+		userId: d
+			.varchar({ length: 255 })
+			.notNull()
+			.primaryKey()
+			.references(() => users.id, {
+				onDelete: 'cascade',
+				onUpdate: 'cascade'
+			}),
+		guildId: d
+			.varchar({ length: 255 })
+			.references(() => guilds.id, {
+				onDelete: 'cascade',
+				onUpdate: 'cascade'
+			}),
+		teamId: d
+			.varchar({ length: 255 })
+			.references(() => teams.id, {
+				onDelete: 'cascade',
+				onUpdate: 'cascade'
+			}),
+		color: d.text({ enum: ["blue", "yellow", "green", "red"] })
+	}),
+	(t) => [
+		index("player_guild_idx").on(t.guildId),
+		index("player_team_idx").on(t.teamId),
+		index("player_color_idx").on(t.color),
+	],
+);
+
+export const playersRelations = relations(players, ({ one }) => ({
+	guild: one(guilds, {
+		fields: [players.guildId],
+		references: [guilds.id]
+	}),
+	user: one(users, {
+		fields: [players.userId],
+		references: [users.id]
+	}),
+	team: one(teams, {
+		fields: [players.teamId],
+		references: [teams.id]
+	}),
+}));
+
+export type Player = InferSelectModel<typeof players>;

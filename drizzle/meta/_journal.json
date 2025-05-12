@@ -8,6 +8,48 @@
       "when": 1746850768948,
       "tag": "0000_flashy_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1746853894989,
+      "tag": "0001_aberrant_tiger_shark",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1746854577240,
+      "tag": "0002_naive_deathstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1746856313808,
+      "tag": "0003_silly_doctor_strange",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1746858046886,
+      "tag": "0004_orange_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1746863446017,
+      "tag": "0005_bizarre_morlocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1746936047016,
+      "tag": "0006_small_tomas",
+      "breakpoints": true
     }
   ]
 }
