@@ -15,6 +15,8 @@ export async function POST() {
       );
     }
 
+    // TODO: prevent from creating guild if already have guild
+
     const player = await createDefaultGuildForUserId(session.user.id);
 
     return NextResponse.json(

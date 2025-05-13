@@ -1,18 +1,27 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { CountdownTimer } from '~/components/countdown-timer';
 import { Button } from '~/components/ui/button';
+import Form from 'next/form';
 import { createDefaultGuild, fetchMe } from '~/server/api-client';
+import { Label } from '~/components/ui/label';
+import Link from 'next/link';
+import { Input } from '~/components/ui/input';
 
 export default function GuildPageComponent() {
   const queryClient = useQueryClient();
+  const [inviteCode, setInviteCode] = useState('');
 
-  const { data: me } = useQuery({
+  // Fetch the "me" data
+  const { data: me, isLoading, } = useQuery({
     queryKey: ['me'],
     queryFn: fetchMe,
+    retry: 2,
   });
 
+  // Mutation to create a default guild
   const createGuild = useMutation({
     mutationFn: createDefaultGuild,
     onSuccess: () => {
@@ -20,22 +29,64 @@ export default function GuildPageComponent() {
     },
   });
 
-  if (!me) {
+  // Mutation to join a guild using an invite code
+  const joinGuild = useMutation({
+    mutationFn: (code: string) => joinGuildByInviteCode(code),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+  });
+
+  // Handle loading state
+  if (isLoading) {
     return (
-      <div>
-        <div>Create new guild</div>
-        <Button
-          onClick={() => {
-            createGuild.mutate();
-          }}
-        >
-          Create
-        </Button>
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading...</p>
       </div>
     );
   }
 
-  const isOwner = me.userId === me.guild?.ownerId;
+  // Handle case where "me" is not available (e.g., no guild)
+  if (!me) {
+    return (
+      <div className="flex h-dvh w-screen items-start justify-center bg-background pt-12 md:items-center md:pt-0">
+        <div className="flex w-full max-w-md flex-col gap-2 overflow-hidden rounded-2xl">
+          <div className="flex flex-col items-center justify-center gap-2 px-4 text-center sm:px-16">
+            <h3 className="font-semibold text-xl dark:text-zinc-50">Welcome!</h3>
+          </div>
+          <div className="flex flex-col px-4 sm:px-16 gap-2">
+            <Input
+              className="bg-muted text-md md:text-sm"
+              type="text"
+              placeholder="Enter your invite code"
+              autoFocus
+            />
+            <Button
+              className='cursor-pointer'
+              onClick={() => {
+                if (inviteCode.trim()) {
+                  joinGuild.mutate(inviteCode.trim());
+                }
+              }}
+            >
+              Join Guild
+            </Button>
+            <p className="mt-4 text-center text-gray-600 text-sm dark:text-zinc-400">
+              Want to create a new guild?
+            </p>
+            <Button
+              className='cursor-pointer'
+              onClick={() => {
+                createGuild.mutate();
+              }}
+            >
+              Create New Guild
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
@@ -44,7 +95,8 @@ export default function GuildPageComponent() {
           Armageddon Battle Timer
         </h1>
         <CountdownTimer
-          isOwner={isOwner}
+          currentUserId={me.userId!}
+          ownerId={me.guild.ownerId}
           timeSlot={me.guild.battleSlot.label}
           battleDates={me.guild.battleDates}
         />

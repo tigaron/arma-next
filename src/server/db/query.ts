@@ -24,6 +24,15 @@ export async function getPlayerByGuildId(guildId: string) {
   }
 }
 
+export async function getPlayerByInviteToken(inviteToken: string) {
+  try {
+    return await db.select().from(players).where(eq(players.inviteToken, inviteToken))
+  } catch (error) {
+    console.error('Failed to get player from database');
+    throw error;
+  }
+}
+
 export async function getPlayerByUserId(userId: string) {
   try {
     return await db.query.players.findFirst({
@@ -80,6 +89,7 @@ export async function createDefaultGuildForUserId(userId: string) {
           ownerId: userId,
           name: 'My Guild',
           battleSlotId: battleSlot.id,
+          battleDates: { from: undefined, to: undefined },
         })
         .returning({
           id: guilds.id,
@@ -353,7 +363,7 @@ export async function deleteTeamById(teamsId: string) {
       await tx.delete(teams).where(eq(teams.id, teamsId));
     });
   } catch (error) {
-    console.error("Failed to delete team from database or Redis");
+    console.error('Failed to delete team from database or Redis');
     throw error;
   }
 }

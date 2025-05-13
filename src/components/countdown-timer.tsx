@@ -31,13 +31,15 @@ import { GuildBattleTimer } from './guild-battle-timer';
 import { TeamSection } from './team-section';
 
 interface CountdownTimerProps {
-  isOwner: boolean;
+  currentUserId: string;
+  ownerId: string;
   timeSlot: GuildBattleTimeSlot;
   battleDates: DateRange;
 }
 
 export function CountdownTimer({
-  isOwner,
+  currentUserId,
+  ownerId,
   timeSlot,
   battleDates,
 }: CountdownTimerProps) {
@@ -238,11 +240,11 @@ export function CountdownTimer({
       <GuildBattleTimer
         timeSlot={timeSlot}
         battleDates={battleDates}
-        isAdmin={isOwner}
+        isAdmin={currentUserId === ownerId}
       />
 
       {/* Admin Add Team Button */}
-      {isOwner && (
+      {currentUserId === ownerId && (
         <div className="mb-4">
           <AddTeamForm
             onAdd={addTeam}
@@ -265,7 +267,8 @@ export function CountdownTimer({
               key={team.id}
               team={team}
               players={players.filter((player) => player.teamId === team.id)}
-              isAdmin={isOwner}
+              currentUserId={currentUserId}
+              ownerId={ownerId}
               onDeleteTeam={deleteTeam}
               onDeletePlayer={deletePlayer}
               onAddPlayer={addPlayer}

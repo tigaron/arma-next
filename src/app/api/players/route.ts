@@ -4,6 +4,7 @@ import {
   addPlayerForGuildId,
   deletePlayerById,
   getPlayerByGuildId,
+  getPlayerByInviteToken,
   getPlayerByUserId,
 } from '~/server/db/query';
 
@@ -210,6 +211,17 @@ export async function DELETE(request: Request) {
           message: 'id is required',
         },
         { status: 400 },
+      );
+    }
+
+    const [playerToDelete] = await getPlayerByInviteToken(id)
+    if (player.guild.ownerId === playerToDelete?.userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Guild owner cannot be deleted',
+        },
+        { status: 403 },
       );
     }
 

@@ -17,18 +17,20 @@ import type { Color } from '~/server/db/schema';
 import { ColorSection } from './color-section';
 
 interface TeamSectionProps {
+  currentUserId: string;
+  ownerId: string;
   team: TeamWithColors;
   players: PlayerWithName[];
-  isAdmin: boolean;
   onDeleteTeam: (team: TeamWithColors) => void;
   onDeletePlayer: (playerId: string) => void;
   onAddPlayer: (teamId: string, colorId: string, position: number) => void;
 }
 
 export function TeamSection({
+  currentUserId,
+  ownerId,
   team,
   players,
-  isAdmin,
   onDeleteTeam,
   onDeletePlayer,
   onAddPlayer,
@@ -67,7 +69,7 @@ export function TeamSection({
         <CollapsibleTrigger asChild>
           <Button
             variant="ghost"
-            className="flex flex-1 items-center justify-start gap-2 p-2"
+            className="flex flex-1 items-center justify-start gap-2 p-2 cursor-pointer"
           >
             {expanded ? (
               <ChevronUp className="h-4 w-4" />
@@ -81,11 +83,11 @@ export function TeamSection({
           </Button>
         </CollapsibleTrigger>
 
-        {isAdmin && !team.isDefault && (
+        {currentUserId === ownerId && !team.isDefault && (
           <Button
             variant="ghost"
             size="sm"
-            className="ml-2 text-gray-500 hover:text-red-500"
+            className="ml-2 text-gray-500 hover:text-red-500 cursor-pointer"
             onClick={() => onDeleteTeam(team)}
           >
             <X className="h-4 w-4" />
@@ -106,7 +108,8 @@ export function TeamSection({
                 teamId={team.id}
                 color={color}
                 players={getPlayersByColor(color)}
-                isAdmin={isAdmin}
+                currentUserId={currentUserId}
+                ownerId={ownerId}
                 onDeletePlayer={onDeletePlayer}
                 onAddPlayer={onAddPlayer}
               />

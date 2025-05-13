@@ -1,7 +1,14 @@
 'use client';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Pause, Play, RotateCcw, X } from 'lucide-react';
+import {
+  CopyIcon,
+  GripVertical,
+  Pause,
+  Play,
+  RotateCcw,
+  X,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '~/components/ui/button';
 import {
@@ -16,9 +23,10 @@ import type { PlayerWithName } from '~/server/api-client';
 import { COLOR_CONFIG, type PlayerColor } from '~/types';
 
 interface PlayerTimerCardProps {
+  currentUserId: string;
+  ownerId: string;
   player: PlayerWithName;
   colorLabel: PlayerColor;
-  isAdmin: boolean;
   onDelete: (playerId: string) => void;
 }
 
@@ -31,9 +39,10 @@ interface TimerState {
 }
 
 export function PlayerTimerCard({
+  currentUserId,
+  ownerId,
   player,
   colorLabel,
-  isAdmin,
   onDelete,
 }: PlayerTimerCardProps) {
   const socket = useSocket();
@@ -124,17 +133,19 @@ export function PlayerTimerCard({
 
   return (
     <Card ref={setNodeRef} style={style} className="relative">
-      {isAdmin && (
+      {currentUserId === ownerId && (
         <>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 right-2 h-6 w-6 text-gray-500 hover:text-red-500"
-            onClick={() => onDelete(player.inviteToken)}
-            aria-label={`Delete ${player.user?.name ?? player.inviteToken}`}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          {player.userId !== ownerId && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 h-6 w-6 text-gray-500 hover:text-red-500  cursor-pointer"
+              onClick={() => onDelete(player.inviteToken)}
+              aria-label={`Delete ${player.user?.name ?? player.inviteToken}`}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
           <div
             className={`absolute top-2 left-2 cursor-grab rounded p-1 ${COLOR_CONFIG[colorLabel].dragHandleClass}`}
             {...attributes}
@@ -147,7 +158,31 @@ export function PlayerTimerCard({
 
       <CardHeader className="pb-2">
         <CardTitle className="text-center text-lg">
-          {player.user?.name ?? player.inviteToken}
+          {player.user?.name ? (
+            player.user.name
+          ) : (
+            <div className="flex items-center justify-center gap-2">
+              <span
+                className="truncate sm:max-w-[100px] w-[180px] text-sm font-mono"
+                title={player.inviteToken}
+              >
+                {player.inviteToken}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  navigator.clipboard.writeText(
+                    `${window.location.origin}/players/claim/${player.inviteToken}`,
+                  )
+                }
+                aria-label="Copy invite link"
+                className="h-8 p-2 cursor-pointer"
+              >
+                <CopyIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </CardTitle>
       </CardHeader>
 
@@ -171,7 +206,7 @@ export function PlayerTimerCard({
                   onClick={() => sendControl('decrease', 1)}
                   disabled={timeLeft <= 0}
                   aria-label="Decrease 1 second"
-                  className="h-7 px-2"
+                  className="h-7 px-2 cursor-pointer"
                 >
                   1s
                 </Button>
@@ -181,7 +216,7 @@ export function PlayerTimerCard({
                   onClick={() => sendControl('decrease', 5)}
                   disabled={timeLeft < 5000}
                   aria-label="Decrease 5 seconds"
-                  className="h-7 px-2"
+                  className="h-7 px-2 cursor-pointer"
                 >
                   5s
                 </Button>
@@ -191,7 +226,7 @@ export function PlayerTimerCard({
                   onClick={() => sendControl('decrease', 10)}
                   disabled={timeLeft < 10000}
                   aria-label="Decrease 10 seconds"
-                  className="h-7 px-2"
+                  className="h-7 px-2 cursor-pointer"
                 >
                   10s
                 </Button>
@@ -208,7 +243,7 @@ export function PlayerTimerCard({
                   size="sm"
                   onClick={() => sendControl('increase', 1)}
                   aria-label="Increase 1 second"
-                  className="h-7 px-2"
+                  className="h-7 px-2 cursor-pointer"
                 >
                   1s
                 </Button>
@@ -217,7 +252,7 @@ export function PlayerTimerCard({
                   size="sm"
                   onClick={() => sendControl('increase', 5)}
                   aria-label="Increase 5 seconds"
-                  className="h-7 px-2"
+                  className="h-7 px-2 cursor-pointer"
                 >
                   5s
                 </Button>
@@ -226,7 +261,7 @@ export function PlayerTimerCard({
                   size="sm"
                   onClick={() => sendControl('increase', 10)}
                   aria-label="Increase 10 seconds"
-                  className="h-7 px-2"
+                  className="h-7 px-2 cursor-pointer"
                 >
                   10s
                 </Button>
@@ -242,7 +277,7 @@ export function PlayerTimerCard({
             <Button
               onClick={() => sendControl('start')}
               size="sm"
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 cursor-pointer"
             >
               <Play className="h-3 w-3" />
               Start
@@ -252,7 +287,7 @@ export function PlayerTimerCard({
               onClick={() => sendControl('pause')}
               variant="secondary"
               size="sm"
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 cursor-pointer"
             >
               <Pause className="h-3 w-3" />
               Pause
@@ -262,7 +297,7 @@ export function PlayerTimerCard({
             onClick={() => sendControl('reset')}
             variant="outline"
             size="sm"
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 cursor-pointer"
           >
             <RotateCcw className="h-3 w-3" />
             Reset

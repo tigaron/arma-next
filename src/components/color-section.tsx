@@ -14,19 +14,21 @@ import { AddPlayerForm } from './add-player-form';
 import { PlayerTimerCard } from './player-timer-card';
 
 interface ColorSectionProps {
+  currentUserId: string;
+  ownerId: string;
   teamId: string;
   color: Color;
   players: PlayerWithName[];
-  isAdmin: boolean;
   onDeletePlayer: (playerId: string) => void;
   onAddPlayer: (teamId: string, colorId: string, position: number) => void;
 }
 
 export function ColorSection({
+  currentUserId,
+  ownerId,
   teamId,
   color,
   players,
-  isAdmin,
   onDeletePlayer,
   onAddPlayer,
 }: ColorSectionProps) {
@@ -76,7 +78,7 @@ export function ColorSection({
           {COLOR_CONFIG[color.label].label}
           <span className="ml-2 text-sm">({players.length})</span>
         </h3>
-        {isAdmin && (
+        {currentUserId === ownerId && (
           <div
             className={`cursor-grab rounded p-1 ${COLOR_CONFIG[color.label].dragHandleClass}`}
             {...attributes}
@@ -97,14 +99,15 @@ export function ColorSection({
               key={player.inviteToken}
               player={player}
               colorLabel={color.label}
-              isAdmin={isAdmin}
+              currentUserId={currentUserId}
+              ownerId={ownerId}
               onDelete={onDeletePlayer}
             />
           ))}
         </SortableContext>
 
         {/* Add Player Button - Only visible to admin */}
-        {isAdmin && (
+        {currentUserId === ownerId && (
           <div className="mt-4">
             <AddPlayerForm
               teamId={teamId}

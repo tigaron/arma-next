@@ -29,7 +29,7 @@ export function AddTeamForm({ onAdd, onCancel, isOpen }: AddTeamFormProps) {
         <Button
           variant="outline"
           onClick={onCancel}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 cursor-pointer"
         >
           <Users className="h-4 w-4" />
           <span>Add Team</span>
@@ -55,10 +55,18 @@ export function AddTeamForm({ onAdd, onCancel, isOpen }: AddTeamFormProps) {
           />
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleSubmit} disabled={!name.trim()}>
+          <Button
+            className=" cursor-pointer"
+            onClick={handleSubmit}
+            disabled={!name.trim()}
+          >
             Add Team
           </Button>
-          <Button variant="outline" onClick={onCancel}>
+          <Button
+            className=" cursor-pointer"
+            variant="outline"
+            onClick={onCancel}
+          >
             Cancel
           </Button>
         </div>

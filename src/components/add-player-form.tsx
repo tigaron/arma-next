@@ -23,7 +23,7 @@ export function AddPlayerForm({
   return (
     <Button
       variant="outline"
-      className="flex w-full items-center justify-center gap-2"
+      className="flex w-full items-center justify-center gap-2 cursor-pointer"
       onClick={handleSubmit}
     >
       <Plus className="h-4 w-4" />

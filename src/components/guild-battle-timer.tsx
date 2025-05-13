@@ -30,8 +30,6 @@ import {
   GUILD_BATTLE_TIME_SLOTS,
   type GuildBattleTimeSlot,
   formatDate,
-  getCurrentMonthName,
-  getCurrentYear,
   timeSlotToUTCHours,
 } from '~/types';
 
@@ -58,7 +56,6 @@ export function GuildBattleTimer({
       ? new Date(new Date(battleDates.to).setUTCHours(23, 59, 59, 999))
       : undefined,
   });
-
 
   const updateTimeSlotMutation = useMutation({
     mutationFn: updateGuildBattleTimeSlotApi,
@@ -248,15 +245,43 @@ export function GuildBattleTimer({
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-between text-center">
-          <span>Guild Battle</span>
+      <CardHeader>
+        <CardTitle className="grid sm:grid-cols-2 grid-cols-1 gap-2">
+          {isAdmin && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="sm:w-[180px] w-full mr-auto justify-start  cursor-pointer"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  <span>{formatDateRange()}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  timeZone="UTC"
+                  selected={dateRange}
+                  onDayClick={handleDayClick}
+                  numberOfMonths={1}
+                  disabled={{
+                    before: new Date(),
+                  }}
+                  modifiers={{
+                    selected: dateRange,
+                    range_start: dateRange?.from,
+                    range_end: dateRange?.to,
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
           {isAdmin && (
             <Select
               onValueChange={handleTimeSlotChange}
               defaultValue={timeSlot}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="sm:w-[180px] w-full ml-auto  cursor-pointer">
                 <SelectValue placeholder="Select time" />
               </SelectTrigger>
               <SelectContent>
@@ -271,7 +296,7 @@ export function GuildBattleTimer({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center mt-1">
           {!timeSlot || !dateRange.from ? (
             isAdmin ? (
               <Alert variant="destructive" className="mb-4">
@@ -314,60 +339,6 @@ export function GuildBattleTimer({
                 )}
               </div>
             </>
-          )}
-
-          {isAdmin && (
-            <div className="mt-4 w-full border-t pt-4">
-              <div className="flex flex-col gap-2">
-                <div className="mb-2 font-medium text-sm">
-                  Battle Dates ({getCurrentMonthName()} {getCurrentYear()}):
-                </div>
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {dateRange.from && dateRange.to ? (
-                    <>
-                      <div className="rounded bg-blue-100 px-2 py-1 text-blue-800 text-sm">
-                        From: {formatDateForDisplay(formatDate(dateRange.from))}
-                      </div>
-                      <div className="rounded bg-blue-100 px-2 py-1 text-blue-800 text-sm">
-                        To: {formatDateForDisplay(formatDate(dateRange.to))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-muted-foreground text-sm">
-                      No dates selected
-                    </div>
-                  )}
-                </div>
-
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      <span>{formatDateRange()}</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      timeZone="UTC"
-                      selected={dateRange}
-                      onDayClick={handleDayClick}
-                      numberOfMonths={1}
-                      disabled={{
-                        before: new Date(),
-                      }}
-                      modifiers={{
-                        selected: dateRange,
-                        range_start: dateRange?.from,
-                        range_end: dateRange?.to,
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
           )}
         </div>
       </CardContent>
