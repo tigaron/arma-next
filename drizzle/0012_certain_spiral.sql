@@ -1,0 +1,1 @@
+ALTER TABLE "arma-timer_team" ALTER COLUMN "isDefault" SET NOT NULL;

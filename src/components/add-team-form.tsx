@@ -1,41 +1,48 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Card } from "~/components/ui/card"
-import { Button } from "~/components/ui/button"
-import { Input } from "~/components/ui/input"
-import { Users } from "lucide-react"
+import { Users } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '~/components/ui/button';
+import { Card } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
 
 interface AddTeamFormProps {
-  onAdd: (name: string) => void
-  onCancel: () => void
-  isOpen: boolean
+  onAdd: (name: string) => void;
+  onCancel: () => void;
+  isOpen: boolean;
 }
 
 export function AddTeamForm({ onAdd, onCancel, isOpen }: AddTeamFormProps) {
-  const [name, setName] = useState("")
+  const [name, setName] = useState('');
 
   const handleSubmit = () => {
     if (name.trim()) {
-      onAdd(name.trim())
-      setName("")
+      onAdd(name.trim());
+      setName('');
     }
-  }
+  };
 
   if (!isOpen) {
     return (
-      <Button variant="outline" onClick={onCancel} className="flex items-center gap-2">
-        <Users className="h-4 w-4" />
-        <span>Add Team</span>
-      </Button>
-    )
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="font-bold text-2xl">Player Timer</h2>
+        <Button
+          variant="outline"
+          onClick={onCancel}
+          className="flex items-center gap-2"
+        >
+          <Users className="h-4 w-4" />
+          <span>Add Team</span>
+        </Button>
+      </div>
+    );
   }
 
   return (
     <Card className="p-4">
       <div className="space-y-4">
         <div>
-          <label htmlFor="teamname" className="text-sm font-medium">
+          <label htmlFor="teamname" className="font-medium text-sm">
             Team Name
           </label>
           <Input
@@ -43,7 +50,7 @@ export function AddTeamForm({ onAdd, onCancel, isOpen }: AddTeamFormProps) {
             placeholder="Team name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full mt-1"
+            className="mt-1 w-full"
             autoFocus
           />
         </div>
@@ -57,5 +64,5 @@ export function AddTeamForm({ onAdd, onCancel, isOpen }: AddTeamFormProps) {
         </div>
       </div>
     </Card>
-  )
+  );
 }

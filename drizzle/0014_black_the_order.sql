@@ -1,0 +1,1 @@
+ALTER TABLE "arma-timer_guild" ADD COLUMN "battleDates" jsonb;

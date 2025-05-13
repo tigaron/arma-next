@@ -1,86 +1,92 @@
-"use client"
+'use client';
 
-import { type Team, type PlayerColor, type Player, DEFAULT_TEAM_ID } from "~/types"
-import { Button } from "~/components/ui/button"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/components/ui/collapsible"
-import { ChevronDown, ChevronUp, X } from "lucide-react"
-import { ColorSection } from "./color-section"
-import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable"
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '~/components/ui/button';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '~/components/ui/collapsible';
+import type { PlayerWithName, TeamWithColors } from '~/server/api-client';
+import type { Color } from '~/server/db/schema';
+import { ColorSection } from './color-section';
 
 interface TeamSectionProps {
-  team: Team
-  players: Player[]
-  playerTimers: Record<string, number>
-  isRunning: Record<string, boolean>
-  isAdmin: boolean
-  canControlTimer: (playerId: string) => boolean
-  expanded: boolean
-  onToggleExpand: () => void
-  onDeleteTeam: (teamId: string) => void
-  onDeletePlayer: (playerId: string) => void
-  onStartTimer: (playerId: string) => void
-  onPauseTimer: (playerId: string) => void
-  onResetTimer: (playerId: string) => void
-  onAdjustTimer: (playerId: string, seconds: number) => void
-  onAddPlayer: (name: string, password: string, teamId: string, color: PlayerColor) => void
-  showAddForm: { teamId: string; color: PlayerColor } | null
-  onShowAddForm: (teamId: string, color: PlayerColor) => void
-  onHideAddForm: () => void
+  team: TeamWithColors;
+  players: PlayerWithName[];
+  isAdmin: boolean;
+  onDeleteTeam: (team: TeamWithColors) => void;
+  onDeletePlayer: (playerId: string) => void;
+  onAddPlayer: (teamId: string, colorId: string, position: number) => void;
 }
 
 export function TeamSection({
   team,
   players,
-  playerTimers,
-  isRunning,
   isAdmin,
-  canControlTimer,
-  expanded,
-  onToggleExpand,
   onDeleteTeam,
   onDeletePlayer,
-  onStartTimer,
-  onPauseTimer,
-  onResetTimer,
-  onAdjustTimer,
   onAddPlayer,
-  showAddForm,
-  onShowAddForm,
-  onHideAddForm,
 }: TeamSectionProps) {
+  const [expanded, setExpanded] = useState(team.isDefault);
+
   // Count total players in the team
   const countPlayersInTeam = () => {
-    return players.filter((player) => player.teamId === team.id).length
-  }
+    return players.filter((player) => player.teamId === team.id).length;
+  };
 
   // Get players for a specific color
-  const getPlayersByColor = (color: PlayerColor) => {
-    return players.filter((player) => player.teamId === team.id && player.color === color)
-  }
+  const getPlayersByColor = (color: Color) => {
+    return players.filter(
+      (player) => player.teamId === team.id && player.colorId === color.id,
+    );
+  };
+
+  const onToggleExpand = () => {
+    setExpanded((prev) => !prev);
+  };
 
   // Default color order if not specified
-  const colorOrder = team.colorOrder || ["blue", "yellow", "green", "red"]
+  const colorOrder = team.colors;
 
   // Create sortable items for the colors
-  const colorItems = colorOrder.map((color) => `${team.id}-${color}`)
+  const colorItems = colorOrder.map((color) => `${team.id}-${color.id}`);
 
   return (
-    <Collapsible open={expanded} onOpenChange={onToggleExpand} className="border rounded-lg p-2">
+    <Collapsible
+      open={expanded}
+      onOpenChange={onToggleExpand}
+      className="rounded-lg border p-2"
+    >
       <div className="flex items-center justify-between">
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="flex items-center gap-2 flex-1 justify-start p-2">
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          <Button
+            variant="ghost"
+            className="flex flex-1 items-center justify-start gap-2 p-2"
+          >
+            {expanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
             <span className="font-medium">{team.name}</span>
-            <span className="text-sm text-muted-foreground ml-2">({countPlayersInTeam()} players)</span>
+            <span className="ml-2 text-muted-foreground text-sm">
+              ({countPlayersInTeam()} players)
+            </span>
           </Button>
         </CollapsibleTrigger>
 
-        {isAdmin && team.id !== DEFAULT_TEAM_ID && (
+        {isAdmin && !team.isDefault && (
           <Button
             variant="ghost"
             size="sm"
-            className="text-gray-500 hover:text-red-500 ml-2"
-            onClick={() => onDeleteTeam(team.id)}
+            className="ml-2 text-gray-500 hover:text-red-500"
+            onClick={() => onDeleteTeam(team)}
           >
             <X className="h-4 w-4" />
           </Button>
@@ -88,33 +94,26 @@ export function TeamSection({
       </div>
 
       <CollapsibleContent>
-        <div className="pt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <SortableContext items={colorItems} strategy={horizontalListSortingStrategy}>
+        <div className="grid grid-cols-1 gap-4 pt-4 md:grid-cols-4">
+          <SortableContext
+            items={colorItems}
+            strategy={horizontalListSortingStrategy}
+          >
             {/* Render colors in the order specified by colorOrder */}
             {colorOrder.map((color) => (
               <ColorSection
-                key={`${team.id}-${color}`}
+                key={`[${team.id}][${color.id}]`}
                 teamId={team.id}
-                color={color as PlayerColor}
-                players={getPlayersByColor(color as PlayerColor)}
-                playerTimers={playerTimers}
-                isRunning={isRunning}
+                color={color}
+                players={getPlayersByColor(color)}
                 isAdmin={isAdmin}
-                canControlTimer={canControlTimer}
                 onDeletePlayer={onDeletePlayer}
-                onStartTimer={onStartTimer}
-                onPauseTimer={onPauseTimer}
-                onResetTimer={onResetTimer}
-                onAdjustTimer={onAdjustTimer}
                 onAddPlayer={onAddPlayer}
-                showAddForm={showAddForm?.teamId === team.id && showAddForm?.color === color}
-                onShowAddForm={() => onShowAddForm(team.id, color as PlayerColor)}
-                onHideAddForm={onHideAddForm}
               />
             ))}
           </SortableContext>
         </div>
       </CollapsibleContent>
     </Collapsible>
-  )
+  );
 }

@@ -1,304 +1,261 @@
-"use client"
+'use client';
 
-import { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
-import { Button } from "~/components/ui/button"
-import { Calendar } from "~/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover"
-import { CalendarIcon, AlertCircle } from "lucide-react"
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { addDays } from 'date-fns';
+import { AlertCircle, CalendarIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import type { DateRange } from 'react-day-picker';
+import { Alert, AlertDescription } from '~/components/ui/alert';
+import { Button } from '~/components/ui/button';
+import { Calendar } from '~/components/ui/calendar';
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import {
-  GUILD_BATTLE_TIME_SLOTS,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '~/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
+import {
+  updateGuildBattleDatesApi,
+  updateGuildBattleTimeSlotApi,
+} from '~/server/api-client';
+import {
   GUILD_BATTLE_TIME,
+  GUILD_BATTLE_TIME_SLOTS,
   type GuildBattleTimeSlot,
-  timeSlotToUTCHours,
   formatDate,
   getCurrentMonthName,
   getCurrentYear,
-} from "~/types"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { updateGuildBattleTimeSlotApi, updateGuildBattleDatesApi } from "~/server/api-client"
-import { addDays, format, isSameDay } from "date-fns"
-import { Alert, AlertDescription } from "~/components/ui/alert"
-import { isDateInRange } from "react-day-picker"
-interface GuildBattleTimerProps {
-  timeSlot: GuildBattleTimeSlot | undefined
-  battleDates: string[]
-  isAdmin: boolean
-}
+  timeSlotToUTCHours,
+} from '~/types';
 
-export function GuildBattleTimer({ timeSlot, battleDates, isAdmin }: GuildBattleTimerProps) {
-  const queryClient = useQueryClient()
-  const [remainingTime, setRemainingTime] = useState(0)
-  const [isActive, setIsActive] = useState(false)
-  const [dateRange, setDateRange] = useState<{
-    from: Date | undefined
-    to: Date | undefined
-  }>({
-    from: battleDates.length > 0 ? new Date(battleDates[0]) : undefined,
-    to: battleDates.length > 0 ? new Date(battleDates[battleDates.length - 1]) : undefined,
-  })
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
+interface GuildBattleTimerProps {
+  timeSlot: GuildBattleTimeSlot;
+  battleDates: DateRange;
+  isAdmin: boolean;
+}
+export function GuildBattleTimer({
+  timeSlot,
+  battleDates,
+  isAdmin,
+}: GuildBattleTimerProps) {
+  const queryClient = useQueryClient();
+  const [remainingTime, setRemainingTime] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [nextBattleDate, setNextBattleDate] = useState<Date | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: battleDates.from
+      ? new Date(new Date(battleDates.from).setUTCHours(0, 0, 0, 0))
+      : undefined,
+    to: battleDates.to
+      ? new Date(new Date(battleDates.to).setUTCHours(23, 59, 59, 999))
+      : undefined,
+  });
+
 
   const updateTimeSlotMutation = useMutation({
     mutationFn: updateGuildBattleTimeSlotApi,
-    onSuccess: (updatedTimeSlot) => {
-      queryClient.setQueryData(["guildBattleTimeSlot"], updatedTimeSlot)
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
     },
-  })
+  });
 
   const updateBattleDatesMutation = useMutation({
     mutationFn: updateGuildBattleDatesApi,
-    onSuccess: (updatedDates) => {
-      queryClient.setQueryData(["guildBattleDates"], updatedDates)
-      if (updatedDates.length > 0) {
-        setDateRange({
-          from: new Date(updatedDates[0]),
-          to: new Date(updatedDates[updatedDates.length - 1]),
-        })
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
     },
-  })
+  });
 
   const formatTime = (seconds: number): string => {
-    if (seconds <= 0) return "00:00:00"
+    if (seconds <= 0) return '00:00:00';
 
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
 
-    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs
       .toString()
-      .padStart(2, "0")}`
-  }
+      .padStart(2, '0')}`;
+  };
 
   const calculateTimeRemaining = (): number => {
-    // If no time slot is set, return 0
-    if (!timeSlot) return 0
+    if (!timeSlot || !dateRange.from) return -1;
 
-    const now = new Date()
-    const todayDate = formatDate(now)
+    const now = new Date();
+    const todayDate = formatDate(now);
 
-    // Check if today is a battle day
-    const isBattleDay = battleDates.includes(todayDate)
+    // Check if today is within the selected range
+    const isBattleDay =
+      dateRange.from &&
+      dateRange.to &&
+      new Date(todayDate) >= new Date(dateRange.from) &&
+      new Date(todayDate) <= new Date(dateRange.to);
 
     if (!isBattleDay) {
-      setIsActive(false)
+      setIsActive(false);
 
       // Find the next battle date
-      const futureBattleDates = battleDates
-        .filter((date) => new Date(date) > now)
-        .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+      const futureBattleDate =
+        dateRange.from && dateRange.to
+          ? new Date(dateRange.from) > now
+            ? new Date(dateRange.from)
+            : new Date(dateRange.to)
+          : null;
 
-      if (futureBattleDates.length === 0) {
-        // No future dates this month, show a long countdown
-        return 24 * 3600 // Just show 24 hours
+      if (!futureBattleDate || futureBattleDate <= now) {
+        // No future dates
+        setNextBattleDate(null);
+        return -1;
       }
 
-      const nextBattleDate = new Date(futureBattleDates[0])
-      const battleHour = timeSlotToUTCHours(timeSlot)
+      const battleHour = timeSlotToUTCHours(timeSlot);
 
       // Set the battle time
-      nextBattleDate.setUTCHours(battleHour, 0, 0, 0)
+      futureBattleDate.setUTCHours(battleHour, 0, 0, 0);
+
+      // Set the next battle date
+      setNextBattleDate(futureBattleDate);
 
       // Calculate seconds until next battle
-      const secondsUntilNextBattle = Math.floor((nextBattleDate.getTime() - now.getTime()) / 1000)
-      return Math.max(0, secondsUntilNextBattle)
+      const secondsUntilNextBattle = Math.floor(
+        (futureBattleDate.getTime() - now.getTime()) / 1000,
+      );
+      return Math.max(0, secondsUntilNextBattle);
     }
 
     // It's a battle day, check if the battle is happening now
-    const utcHour = now.getUTCHours()
-    const utcMinute = now.getUTCMinutes()
-    const utcSecond = now.getUTCSeconds()
-    const battleHour = timeSlotToUTCHours(timeSlot)
+    const utcHour = now.getUTCHours();
+    const utcMinute = now.getUTCMinutes();
+    const utcSecond = now.getUTCSeconds();
+    const battleHour = timeSlotToUTCHours(timeSlot);
 
     // Calculate seconds until the battle starts
     if (utcHour < battleHour) {
       // Battle is later today
-      const secondsUntilStart = (battleHour - utcHour) * 3600 - utcMinute * 60 - utcSecond
-      setIsActive(false)
-      return secondsUntilStart
-    } else if (utcHour === battleHour) {
+      const secondsUntilStart =
+        (battleHour - utcHour) * 3600 - utcMinute * 60 - utcSecond;
+      setIsActive(false);
+      setNextBattleDate(new Date(todayDate));
+      return secondsUntilStart;
+    }
+
+    if (utcHour === battleHour) {
       // Check if battle is in progress
-      const elapsedSeconds = utcMinute * 60 + utcSecond
+      const elapsedSeconds = utcMinute * 60 + utcSecond;
       if (elapsedSeconds < GUILD_BATTLE_TIME) {
         // Battle is in progress
-        setIsActive(true)
-        return GUILD_BATTLE_TIME - elapsedSeconds
+        setIsActive(true);
+        setNextBattleDate(new Date(todayDate));
+        return GUILD_BATTLE_TIME - elapsedSeconds;
       }
     }
 
-    // Battle is over for today, find next battle date
-    setIsActive(false)
-    const futureBattleDates = battleDates
-      .filter((date) => new Date(date) > now)
-      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+    // Battle is over for today, check if there's a battle tomorrow
+    const tomorrow = new Date(now);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
-    if (futureBattleDates.length === 0) {
-      // No future dates this month, show a long countdown
-      return 24 * 3600 // Just show 24 hours
+    if (
+      tomorrow >= new Date(dateRange.from) &&
+      tomorrow <= new Date(dateRange.to!)
+    ) {
+      const battleHour = timeSlotToUTCHours(timeSlot);
+      tomorrow.setUTCHours(battleHour, 0, 0, 0);
+      setIsActive(false);
+      setNextBattleDate(tomorrow);
+
+      const secondsUntilNextBattle = Math.floor(
+        (tomorrow.getTime() - now.getTime()) / 1000,
+      );
+      return Math.max(0, secondsUntilNextBattle);
     }
 
-    const nextBattleDate = new Date(futureBattleDates[0])
-    nextBattleDate.setUTCHours(battleHour, 0, 0, 0)
-
-    // Calculate seconds until next battle
-    const secondsUntilNextBattle = Math.floor((nextBattleDate.getTime() - now.getTime()) / 1000)
-    return Math.max(0, secondsUntilNextBattle)
-  }
+    // No upcoming battles
+    setIsActive(false);
+    setNextBattleDate(null);
+    return -1;
+  };
 
   useEffect(() => {
     // Initial calculation
-    setRemainingTime(calculateTimeRemaining())
+    setRemainingTime(calculateTimeRemaining());
 
     // Set up interval to update every second
     timerRef.current = setInterval(() => {
       setRemainingTime((prev) => {
         if (prev <= 1) {
           // Recalculate when timer reaches zero
-          return calculateTimeRemaining()
+          return calculateTimeRemaining();
         }
-        return prev - 1
-      })
-    }, 1000)
+        return prev - 1;
+      });
+    }, 1000);
 
     return () => {
       if (timerRef.current) {
-        clearInterval(timerRef.current)
+        clearInterval(timerRef.current);
       }
-    }
-  }, [timeSlot, battleDates])
+    };
+  }, [timeSlot, battleDates]);
 
   const handleTimeSlotChange = (newTimeSlot: string) => {
-    updateTimeSlotMutation.mutate(newTimeSlot as GuildBattleTimeSlot)
-  }
+    updateTimeSlotMutation.mutate(newTimeSlot as GuildBattleTimeSlot);
+  };
 
-  // Custom day selection handler
   const handleDayClick = (day: Date) => {
-    // Set the start date to the clicked day
-    const startDate = new Date(day)
-    // Set the end date to 2 days after the start date
-    const endDate = addDays(startDate, 2)
+    const startDate = new Date(day);
+    startDate.setUTCHours(0, 0, 0, 0); // Start at 00:00:00 UTC
 
-    const newRange = {
+    const endDate = addDays(startDate, 2);
+    endDate.setUTCHours(23, 59, 59, 999); // End at 23:59:59 UTC
+
+    const newRange: DateRange = {
       from: startDate,
       to: endDate,
-    }
+    };
 
-    setDateRange(newRange)
-
-    // Generate 3 consecutive days
-    const dates = [formatDate(startDate), formatDate(addDays(startDate, 1)), formatDate(endDate)]
-
-    updateBattleDatesMutation.mutate(dates)
-  }
-
-  // Find the next battle date
-  const getNextBattleInfo = (): { date: string; isToday: boolean } => {
-    if (!timeSlot || battleDates.length === 0) {
-      return {
-        date: "No battles scheduled",
-        isToday: false,
-      }
-    }
-
-    const now = new Date()
-    const todayDate = formatDate(now)
-
-    // Check if today is a battle day
-    if (battleDates.includes(todayDate)) {
-      const battleHour = timeSlotToUTCHours(timeSlot)
-      const currentHour = now.getUTCHours()
-
-      // If battle hasn't happened yet today or is happening now
-      if (currentHour < battleHour || (currentHour === battleHour && isActive)) {
-        return {
-          date: todayDate,
-          isToday: true,
-        }
-      }
-    }
-
-    // Find the next battle date
-    const futureBattleDates = battleDates
-      .filter((date) => new Date(date) > now)
-      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-
-    if (futureBattleDates.length === 0) {
-      return {
-        date: "No upcoming battles scheduled",
-        isToday: false,
-      }
-    }
-
-    return {
-      date: futureBattleDates[0],
-      isToday: false,
-    }
-  }
+    setDateRange(newRange);
+    updateBattleDatesMutation.mutate(newRange);
+  };
 
   const formatDateForDisplay = (dateString: string): string => {
-    if (dateString === "No upcoming battles scheduled" || dateString === "No battles scheduled") return dateString
-
-    const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
-    })
-  }
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year:
+        date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+    });
+  };
 
   const formatDateRange = (): string => {
-    if (!dateRange.from) return "No dates selected"
+    if (!dateRange.from) return 'No dates selected';
 
-    const startDate = formatDateForDisplay(formatDate(dateRange.from))
+    const startDate = formatDateForDisplay(formatDate(dateRange.from));
 
-    if (!dateRange.to) return startDate
+    if (!dateRange.to) return startDate;
 
-    const endDate = formatDateForDisplay(formatDate(dateRange.to))
-    return `${startDate} - ${endDate}`
-  }
-
-  const nextBattleInfo = getNextBattleInfo()
-
-  // Custom component to render the day cell with selection logic
-  const renderDay = (day: Date) => {
-    // Check if this day is part of the selected range
-    let isSelected = false
-    let isRangeStart = false
-    let isRangeEnd = false
-
-    if (dateRange.from && dateRange.to) {
-      const date = new Date(day)
-      isSelected =
-        (date >= dateRange.from && date <= dateRange.to) ||
-        isSameDay(date, dateRange.from) ||
-        isSameDay(date, dateRange.to)
-      isRangeStart = isSameDay(date, dateRange.from)
-      isRangeEnd = isSameDay(date, dateRange.to)
-    }
-
-    return (
-      <div
-        className={`
-          relative w-full h-full p-0
-          ${isSelected ? "bg-primary text-primary-foreground" : ""}
-          ${isRangeStart ? "rounded-l-md" : ""}
-          ${isRangeEnd ? "rounded-r-md" : ""}
-        `}
-      >
-        {format(day, "d")}
-      </div>
-    )
-  }
+    const endDate = formatDateForDisplay(formatDate(dateRange.to));
+    return `${startDate} - ${endDate}`;
+  };
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-center flex justify-between items-center">
-          <span>Guild Battle Timer</span>
+        <CardTitle className="flex items-center justify-between text-center">
+          <span>Guild Battle</span>
           {isAdmin && (
-            <Select onValueChange={handleTimeSlotChange} defaultValue={timeSlot}>
+            <Select
+              onValueChange={handleTimeSlotChange}
+              defaultValue={timeSlot}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select time" />
               </SelectTrigger>
@@ -315,56 +272,81 @@ export function GuildBattleTimer({ timeSlot, battleDates, isAdmin }: GuildBattle
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center justify-center">
-          {!timeSlot || battleDates.length === 0 ? (
+          {!timeSlot || !dateRange.from ? (
             isAdmin ? (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Please set the battle time and dates to activate the guild battle timer.
+                  Please set the battle time and dates to activate the guild
+                  battle timer.
                 </AlertDescription>
               </Alert>
             ) : (
               <Alert variant="default" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>No guild battles are currently scheduled.</AlertDescription>
+                <AlertDescription>
+                  No guild battles are currently scheduled.
+                </AlertDescription>
               </Alert>
             )
+          ) : remainingTime === -1 ? (
+            <div className="text-muted-foreground text-sm">
+              <span>No upcoming battle</span>
+            </div>
           ) : (
             <>
-              <div className="text-5xl font-mono font-bold tabular-nums mb-2">{formatTime(remainingTime)}</div>
-              <div className="text-sm text-muted-foreground">
+              <div className="mb-2 font-bold font-mono text-5xl tabular-nums">
+                {formatTime(remainingTime)}
+              </div>
+              <div className="text-muted-foreground text-sm">
                 {isActive ? (
-                  <span className="text-red-600 font-semibold">Battle in progress!</span>
-                ) : (
+                  <span className="font-semibold text-red-600">
+                    Battle in progress!
+                  </span>
+                ) : nextBattleDate ? (
                   <span>
-                    Next battle: {nextBattleInfo.isToday ? "Today" : formatDateForDisplay(nextBattleInfo.date)},{" "}
+                    Next battle:{' '}
+                    {formatDateForDisplay(nextBattleDate.toISOString())},{' '}
                     {timeSlot} UTC
                   </span>
+                ) : (
+                  <span>No upcoming battle</span>
                 )}
               </div>
             </>
           )}
 
           {isAdmin && (
-            <div className="mt-4 border-t pt-4 w-full">
+            <div className="mt-4 w-full border-t pt-4">
               <div className="flex flex-col gap-2">
-                <div className="text-sm font-medium mb-2">
+                <div className="mb-2 font-medium text-sm">
                   Battle Dates ({getCurrentMonthName()} {getCurrentYear()}):
                 </div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {battleDates.map((date, index) => (
-                    <div key={date} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                      Day-{index+1} [{formatDateForDisplay(date)}]
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {dateRange.from && dateRange.to ? (
+                    <>
+                      <div className="rounded bg-blue-100 px-2 py-1 text-blue-800 text-sm">
+                        From: {formatDateForDisplay(formatDate(dateRange.from))}
+                      </div>
+                      <div className="rounded bg-blue-100 px-2 py-1 text-blue-800 text-sm">
+                        To: {formatDateForDisplay(formatDate(dateRange.to))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-muted-foreground text-sm">
+                      No dates selected
                     </div>
-                  ))}
-                  {battleDates.length === 0 && <div className="text-sm text-muted-foreground">No dates selected</div>}
+                  )}
                 </div>
 
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      <span>Select Battle Dates: {formatDateRange()}</span>
+                      <span>{formatDateRange()}</span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -381,13 +363,6 @@ export function GuildBattleTimer({ timeSlot, battleDates, isAdmin }: GuildBattle
                         range_start: dateRange?.from,
                         range_end: dateRange?.to,
                       }}
-                      footer={
-                        !dateRange.from && (
-                          <div className="px-4 py-2 text-sm text-center text-muted-foreground">
-                            Please select a start date.
-                          </div>
-                        )
-                      }
                     />
                   </PopoverContent>
                 </Popover>
@@ -397,5 +372,5 @@ export function GuildBattleTimer({ timeSlot, battleDates, isAdmin }: GuildBattle
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

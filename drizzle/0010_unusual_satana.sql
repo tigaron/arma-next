@@ -1,0 +1,1 @@
+ALTER TABLE "arma-timer_player" ALTER COLUMN "userId" DROP NOT NULL;

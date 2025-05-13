@@ -1,0 +1,1 @@
+ALTER TABLE "arma-timer_player" ADD COLUMN "position" smallint NOT NULL;
