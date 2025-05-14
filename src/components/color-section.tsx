@@ -84,7 +84,7 @@ export function ColorSection({
             {...attributes}
             {...listeners}
           >
-            <GripHorizontal className="h-4 w-4 text-gray-500" />
+            <GripHorizontal className="h-4 w-4 text-white" />
           </div>
         )}
       </div>

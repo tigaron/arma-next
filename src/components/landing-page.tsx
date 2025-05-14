@@ -11,6 +11,7 @@ import {
   fetchMe,
   joinGuildByInviteCode,
 } from '~/server/api-client';
+import { UserNav } from './user-nav';
 
 export default function LandingPage() {
   const queryClient = useQueryClient();
@@ -20,7 +21,7 @@ export default function LandingPage() {
   const { data: me, isLoading } = useQuery({
     queryKey: ['me'],
     queryFn: fetchMe,
-    retry: 2,
+    retry: false,
   });
 
   // Mutation to create a default guild
@@ -41,11 +42,14 @@ export default function LandingPage() {
   // Mutation to join a guild using an invite code
   const joinGuild = useMutation({
     mutationFn: (code: string) => joinGuildByInviteCode(code),
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Show success toast
       toast.success('Successfully joined the guild!');
       // Redirect after showing the toast
       queryClient.invalidateQueries({ queryKey: ['me'] });
+      queryClient.invalidateQueries({
+        queryKey: ['players', { guildId: data.guildId }],
+      });
     },
     onError: (error: any) => {
       // Show error toast
@@ -84,6 +88,7 @@ export default function LandingPage() {
               autoFocus
             />
             <Button
+              variant="outline"
               className="cursor-pointer"
               onClick={() => {
                 if (inviteCode.trim()) {
@@ -97,6 +102,7 @@ export default function LandingPage() {
               Want to create a new guild?
             </p>
             <Button
+              variant="outline"
               className="cursor-pointer"
               onClick={() => {
                 createGuild.mutate();
@@ -111,12 +117,14 @@ export default function LandingPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4">
+      <div className="w-full max-w-6xl flex justify-between items-center mb-4 text-center">
+        <h1 className="text-center font-bold text-3xl">Armageddon Timer</h1>
+        <UserNav user={me} />
+      </div>
       <div className="mx-auto w-full max-w-6xl">
-        <h1 className="mb-8 text-center font-bold text-3xl">
-          Armageddon Battle Timer
-        </h1>
         <CountdownTimer
+          guildId={me.guildId!}
           currentUserId={me.userId!}
           ownerId={me.guild.ownerId}
           timeSlot={me.guild.battleSlot.label}

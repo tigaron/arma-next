@@ -139,7 +139,7 @@ export function PlayerTimerCard({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute top-2 right-2 h-6 w-6 text-gray-500 hover:text-red-500  cursor-pointer"
+              className="absolute top-2 right-2 h-6 w-6 text-white hover:text-red-500 cursor-pointer"
               onClick={() => onDelete(player.inviteToken)}
               aria-label={`Delete ${player.user?.name ?? player.inviteToken}`}
             >
@@ -151,7 +151,7 @@ export function PlayerTimerCard({
             {...attributes}
             {...listeners}
           >
-            <GripVertical className="h-4 w-4 text-gray-500" />
+            <GripVertical className="h-4 w-4 text-white" />
           </div>
         </>
       )}
@@ -196,9 +196,6 @@ export function PlayerTimerCard({
         {(player.userId === currentUserId || currentUserId === ownerId) && (
           <div className="space-y-2">
             <div className="flex items-center justify-center">
-              <span className="mr-2 text-muted-foreground text-sm">
-                Decrease:
-              </span>
               <div className="flex gap-1">
                 <Button
                   variant="outline"
@@ -208,7 +205,7 @@ export function PlayerTimerCard({
                   aria-label="Decrease 1 second"
                   className="h-7 px-2 cursor-pointer"
                 >
-                  1s
+                  - 1s
                 </Button>
                 <Button
                   variant="outline"
@@ -218,7 +215,7 @@ export function PlayerTimerCard({
                   aria-label="Decrease 5 seconds"
                   className="h-7 px-2 cursor-pointer"
                 >
-                  5s
+                  - 5s
                 </Button>
                 <Button
                   variant="outline"
@@ -228,15 +225,12 @@ export function PlayerTimerCard({
                   aria-label="Decrease 10 seconds"
                   className="h-7 px-2 cursor-pointer"
                 >
-                  10s
+                  - 10s
                 </Button>
               </div>
             </div>
 
             <div className="flex items-center justify-center">
-              <span className="mr-2 text-muted-foreground text-sm">
-                Increase:
-              </span>
               <div className="flex gap-1">
                 <Button
                   variant="outline"
@@ -245,7 +239,7 @@ export function PlayerTimerCard({
                   aria-label="Increase 1 second"
                   className="h-7 px-2 cursor-pointer"
                 >
-                  1s
+                  + 1s
                 </Button>
                 <Button
                   variant="outline"
@@ -254,7 +248,7 @@ export function PlayerTimerCard({
                   aria-label="Increase 5 seconds"
                   className="h-7 px-2 cursor-pointer"
                 >
-                  5s
+                  + 5s
                 </Button>
                 <Button
                   variant="outline"
@@ -263,7 +257,7 @@ export function PlayerTimerCard({
                   aria-label="Increase 10 seconds"
                   className="h-7 px-2 cursor-pointer"
                 >
-                  10s
+                  + 10s
                 </Button>
               </div>
             </div>

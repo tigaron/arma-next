@@ -31,6 +31,7 @@ import { GuildBattleTimer } from './guild-battle-timer';
 import { TeamSection } from './team-section';
 
 interface CountdownTimerProps {
+  guildId: string;
   currentUserId: string;
   ownerId: string;
   timeSlot: GuildBattleTimeSlot;
@@ -38,6 +39,7 @@ interface CountdownTimerProps {
 }
 
 export function CountdownTimer({
+  guildId,
   currentUserId,
   ownerId,
   timeSlot,
@@ -47,12 +49,12 @@ export function CountdownTimer({
 
   // Queries
   const { data: teams = [] } = useQuery({
-    queryKey: ['teams'],
+    queryKey: ['teams', { guildId }],
     queryFn: fetchTeams,
   });
 
   const { data: players = [] } = useQuery({
-    queryKey: ['players'],
+    queryKey: ['players', { guildId }],
     queryFn: fetchPlayers,
   });
 
@@ -60,7 +62,7 @@ export function CountdownTimer({
   const addTeamMutation = useMutation({
     mutationFn: addTeamApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ['teams', { guildId }] });
     },
   });
 
@@ -71,26 +73,29 @@ export function CountdownTimer({
     }: { teamId: string; colorOrder: PlayerColor[] }) =>
       updateColorOrderApi(teamId, colorOrder),
     onSuccess: (updatedTeam) => {
-      queryClient.setQueryData(['teams'], (oldTeams: TeamWithColors[] = []) => {
-        return oldTeams.map((team) =>
-          team.id === updatedTeam.id ? updatedTeam : team,
-        );
-      });
+      queryClient.setQueryData(
+        ['teams', { guildId }],
+        (oldTeams: TeamWithColors[] = []) => {
+          return oldTeams.map((team) =>
+            team.id === updatedTeam.id ? updatedTeam : team,
+          );
+        },
+      );
     },
   });
 
   const deleteTeamMutation = useMutation({
     mutationFn: deleteTeamApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] });
-      queryClient.invalidateQueries({ queryKey: ['players'] });
+      queryClient.invalidateQueries({ queryKey: ['teams', { guildId }] });
+      queryClient.invalidateQueries({ queryKey: ['players', { guildId }] });
     },
   });
 
   const addPlayerMutation = useMutation({
     mutationFn: addPlayerApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['players'] });
+      queryClient.invalidateQueries({ queryKey: ['players', { guildId }] });
     },
   });
 
@@ -107,14 +112,14 @@ export function CountdownTimer({
       position: number;
     }) => movePlayerApi(playerId, teamId, colorId, position),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['players'] });
+      queryClient.invalidateQueries({ queryKey: ['players', { guildId }] });
     },
   });
 
   const deletePlayerMutation = useMutation({
     mutationFn: deletePlayerApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['players'] });
+      queryClient.invalidateQueries({ queryKey: ['players', { guildId }] });
     },
   });
 
@@ -241,6 +246,7 @@ export function CountdownTimer({
         timeSlot={timeSlot}
         battleDates={battleDates}
         isAdmin={currentUserId === ownerId}
+        guildId={guildId}
       />
 
       {/* Admin Add Team Button */}

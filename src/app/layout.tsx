@@ -5,6 +5,7 @@ import { Geist } from 'next/font/google';
 import { Toaster } from '~/components/ui/sonner';
 import QueryProvider from '~/providers/query-provider';
 import { SocketProvider } from '~/providers/socket-provider';
+import { ThemeProvider } from '~/providers/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Armageddon Battle Timer',
@@ -21,12 +22,19 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable}`}>
+    <html lang="en" className={`${geist.variable}`} suppressHydrationWarning>
       <body>
-        <SocketProvider>
-          <QueryProvider>{children}</QueryProvider>
-        </SocketProvider>
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SocketProvider>
+            <QueryProvider>{children}</QueryProvider>
+          </SocketProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { useSocket } from '~/providers/socket-provider';
 import {
   updateGuildBattleDatesApi,
   updateGuildBattleTimeSlotApi,
@@ -37,13 +38,16 @@ interface GuildBattleTimerProps {
   timeSlot: GuildBattleTimeSlot;
   battleDates: DateRange;
   isAdmin: boolean;
+  guildId: string;
 }
 export function GuildBattleTimer({
   timeSlot,
   battleDates,
   isAdmin,
+  guildId,
 }: GuildBattleTimerProps) {
   const queryClient = useQueryClient();
+  const socket = useSocket();
   const [remainingTime, setRemainingTime] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -57,17 +61,33 @@ export function GuildBattleTimer({
       : undefined,
   });
 
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.emit('guild:join', { guildId });
+
+    const handleUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    };
+
+    socket.on(`guild:${guildId}:update`, handleUpdate);
+
+    return () => {
+      socket.off(`guild:${guildId}:update`);
+    };
+  }, [socket, guildId, queryClient]);
+
   const updateTimeSlotMutation = useMutation({
     mutationFn: updateGuildBattleTimeSlotApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      socket?.emit('guild:update', { guildId });
     },
   });
 
   const updateBattleDatesMutation = useMutation({
     mutationFn: updateGuildBattleDatesApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      socket?.emit('guild:update', { guildId });
     },
   });
 
