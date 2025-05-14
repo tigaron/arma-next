@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '~/server/auth';
-import {
-  createDefaultGuildForUserId,
-  getPlayerByUserId,
-} from '~/server/db/query';
+import { addPlayerByInviteToken, getPlayerByUserId } from '~/server/db/query';
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const session = await auth();
     if (!session) {
@@ -29,13 +26,27 @@ export async function POST() {
       );
     }
 
-    const guild = await createDefaultGuildForUserId(session.user.id);
+    const { inviteToken } = await request.json();
+    if (!inviteToken) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'inviteToken is required',
+        },
+        { status: 400 },
+      );
+    }
+
+    const newPlayer = await addPlayerByInviteToken(
+      inviteToken,
+      session.user.id,
+    );
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Default guild created',
-        data: guild,
+        message: 'New player created',
+        data: newPlayer,
       },
       { status: 201 },
     );
@@ -44,7 +55,7 @@ export async function POST() {
     return NextResponse.json(
       {
         success: false,
-        message: 'Internal server error',
+        message: 'Failed to create new player',
       },
       { status: 500 },
     );

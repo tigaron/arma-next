@@ -54,6 +54,19 @@ export const createDefaultGuild = async (): Promise<PlayerWithName> => {
   return data;
 };
 
+export const joinGuildByInviteCode = async (
+  inviteToken: string,
+): Promise<PlayerWithName> => {
+  const response = await fetch('/api/players/claim', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inviteToken }),
+  });
+  if (!response.ok) throw new Error('Failed to create player');
+  const { data } = await response.json();
+  return data;
+};
+
 export const addTeamApi = async (name: string): Promise<TeamWithColors> => {
   const response = await fetch('/api/teams', {
     method: 'POST',

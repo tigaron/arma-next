@@ -26,7 +26,10 @@ export async function getPlayerByGuildId(guildId: string) {
 
 export async function getPlayerByInviteToken(inviteToken: string) {
   try {
-    return await db.select().from(players).where(eq(players.inviteToken, inviteToken))
+    return await db
+      .select()
+      .from(players)
+      .where(eq(players.inviteToken, inviteToken));
   } catch (error) {
     console.error('Failed to get player from database');
     throw error;
@@ -279,6 +282,66 @@ export async function addPlayerForGuildId(
     await redis.set(timerOwnerKey, timerOwner);
 
     return player;
+  } catch (error) {
+    console.error('Failed to store player in database');
+    throw error;
+  }
+}
+
+export async function addPlayerByInviteToken(
+  inviteToken: string,
+  userId: string,
+) {
+  try {
+    const player = await db.query.players.findFirst({
+      where: eq(players.inviteToken, inviteToken),
+      with: {
+        guild: {
+          columns: {
+            ownerId: true,
+          },
+        },
+      },
+    });
+
+    if (!player) {
+      throw new Error('Player not found');
+    }
+
+    if (player.userId) {
+      throw new Error('Player is already claimed');
+    }
+
+    if (!player.guild?.ownerId) {
+      throw new Error('Guild not found');
+    }
+
+    const [claimedPlayer] = await db
+      .update(players)
+      .set({
+        userId,
+      })
+      .where(eq(players.inviteToken, inviteToken))
+      .returning();
+
+    const timerStateKey = `timer:${inviteToken}`;
+    const timerDefaultState = JSON.stringify({
+      duration: 300000,
+      isRunning: false,
+      pausedDuration: 0,
+    });
+
+    await redis.set(timerStateKey, timerDefaultState);
+
+    const timerOwnerKey = `timer:${inviteToken}:owner`;
+    const timerOwner = JSON.stringify({
+      playerId: userId,
+      guildOwner: player.guild.ownerId,
+    });
+
+    await redis.set(timerOwnerKey, timerOwner);
+
+    return claimedPlayer;
   } catch (error) {
     console.error('Failed to store player in database');
     throw error;

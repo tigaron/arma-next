@@ -2,20 +2,22 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { CountdownTimer } from '~/components/countdown-timer';
 import { Button } from '~/components/ui/button';
-import Form from 'next/form';
-import { createDefaultGuild, fetchMe } from '~/server/api-client';
-import { Label } from '~/components/ui/label';
-import Link from 'next/link';
 import { Input } from '~/components/ui/input';
+import {
+  createDefaultGuild,
+  fetchMe,
+  joinGuildByInviteCode,
+} from '~/server/api-client';
 
-export default function GuildPageComponent() {
+export default function LandingPage() {
   const queryClient = useQueryClient();
   const [inviteCode, setInviteCode] = useState('');
 
   // Fetch the "me" data
-  const { data: me, isLoading, } = useQuery({
+  const { data: me, isLoading } = useQuery({
     queryKey: ['me'],
     queryFn: fetchMe,
     retry: 2,
@@ -25,7 +27,14 @@ export default function GuildPageComponent() {
   const createGuild = useMutation({
     mutationFn: createDefaultGuild,
     onSuccess: () => {
+      toast.success('Successfully created a new guild!');
       queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+    onError: (error: any) => {
+      // Show error toast
+      toast.error(
+        error?.message || 'Failed to create the guild. Please try again.',
+      );
     },
   });
 
@@ -33,7 +42,16 @@ export default function GuildPageComponent() {
   const joinGuild = useMutation({
     mutationFn: (code: string) => joinGuildByInviteCode(code),
     onSuccess: () => {
+      // Show success toast
+      toast.success('Successfully joined the guild!');
+      // Redirect after showing the toast
       queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+    onError: (error: any) => {
+      // Show error toast
+      toast.error(
+        error?.message || 'Failed to join the guild. Please try again.',
+      );
     },
   });
 
@@ -52,17 +70,21 @@ export default function GuildPageComponent() {
       <div className="flex h-dvh w-screen items-start justify-center bg-background pt-12 md:items-center md:pt-0">
         <div className="flex w-full max-w-md flex-col gap-2 overflow-hidden rounded-2xl">
           <div className="flex flex-col items-center justify-center gap-2 px-4 text-center sm:px-16">
-            <h3 className="font-semibold text-xl dark:text-zinc-50">Welcome!</h3>
+            <h3 className="font-semibold text-xl dark:text-zinc-50">
+              Welcome!
+            </h3>
           </div>
           <div className="flex flex-col px-4 sm:px-16 gap-2">
             <Input
               className="bg-muted text-md md:text-sm"
               type="text"
               placeholder="Enter your invite code"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
               autoFocus
             />
             <Button
-              className='cursor-pointer'
+              className="cursor-pointer"
               onClick={() => {
                 if (inviteCode.trim()) {
                   joinGuild.mutate(inviteCode.trim());
@@ -75,7 +97,7 @@ export default function GuildPageComponent() {
               Want to create a new guild?
             </p>
             <Button
-              className='cursor-pointer'
+              className="cursor-pointer"
               onClick={() => {
                 createGuild.mutate();
               }}

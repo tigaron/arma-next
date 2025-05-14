@@ -41,6 +41,7 @@ export const authConfig = {
   providers: [
     DiscordProvider,
     Resend({
+      name: 'Email',
       from: 'no-reply@app.fourleaves.studio',
     }),
     /**

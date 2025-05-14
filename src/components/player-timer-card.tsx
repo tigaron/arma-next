@@ -193,7 +193,7 @@ export function PlayerTimerCard({
           </div>
         </div>
 
-        {timerState?.canControl && (
+        {(player.userId === currentUserId || currentUserId === ownerId) && (
           <div className="space-y-2">
             <div className="flex items-center justify-center">
               <span className="mr-2 text-muted-foreground text-sm">
@@ -271,7 +271,7 @@ export function PlayerTimerCard({
         )}
       </CardContent>
 
-      {timerState?.canControl && (
+      {(player.userId === currentUserId || currentUserId === ownerId) && (
         <CardFooter className="flex justify-center gap-2 pt-0">
           {timerState && !timerState.isRunning ? (
             <Button

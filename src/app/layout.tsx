@@ -2,6 +2,7 @@ import '~/styles/globals.css';
 
 import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
+import { Toaster } from '~/components/ui/sonner';
 import QueryProvider from '~/providers/query-provider';
 import { SocketProvider } from '~/providers/socket-provider';
 
@@ -25,6 +26,7 @@ export default function RootLayout({
         <SocketProvider>
           <QueryProvider>{children}</QueryProvider>
         </SocketProvider>
+        <Toaster />
       </body>
     </html>
   );

@@ -214,7 +214,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const [playerToDelete] = await getPlayerByInviteToken(id)
+    const [playerToDelete] = await getPlayerByInviteToken(id);
     if (player.guild.ownerId === playerToDelete?.userId) {
       return NextResponse.json(
         {
