@@ -69,7 +69,7 @@ export const timeSlotToUTCHours = (timeSlot: GuildBattleTimeSlot): number => {
 
 // Format date to YYYY-MM-DD
 export const formatDate = (date: Date): string => {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0]!;
 };
 
 // Get current month name
