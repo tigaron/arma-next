@@ -1,25 +1,19 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { addDays } from 'date-fns';
 import { AlertCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import { useSocket } from '~/providers/socket-provider';
+import { GUILD_BATTLE_TIME } from '~/lib/constants';
+import { timeSlotToUTCHours } from '~/lib/utils';
 import {
   type GuildWithBattleSlot,
   fetchBattleTimeSlots,
-  updateGuildBattleDatesApi,
-  updateGuildBattleTimeSlotApi,
 } from '~/server/api-client';
-import {
-  GUILD_BATTLE_TIME,
-  type GuildBattleTimeSlot,
-  formatDate,
-  timeSlotToUTCHours,
-} from '~/types';
+import type { BattleSlot } from '~/server/db/schema';
 import { BattleCalendar } from './battle-calendar';
 import { BattleTime } from './battle-time';
 import { Skeleton } from './ui/skeleton';
@@ -27,11 +21,16 @@ import { Skeleton } from './ui/skeleton';
 interface GuildBattleTimerProps {
   userId: string;
   guild: GuildWithBattleSlot;
+  onUpdateTimeSlot: (newTimeSlot: BattleSlot['label']) => void;
+  onUpdateBattleDates: (newRange: DateRange) => void;
 }
 
-export function GuildTimer({ userId, guild }: GuildBattleTimerProps) {
-  const queryClient = useQueryClient();
-  const socket = useSocket();
+export function GuildTimer({
+  userId,
+  guild,
+  onUpdateTimeSlot,
+  onUpdateBattleDates,
+}: GuildBattleTimerProps) {
   const [remainingTime, setRemainingTime] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -40,47 +39,15 @@ export function GuildTimer({ userId, guild }: GuildBattleTimerProps) {
     from: undefined,
     to: undefined,
   });
-  const [timeSlot, setTimeSlot] = useState<GuildBattleTimeSlot | undefined>(
+  const [timeSlot, setTimeSlot] = useState<BattleSlot['label'] | undefined>(
     undefined,
   );
 
   const isAdmin = userId === guild.ownerId;
 
-  useEffect(() => {
-    if (!socket) return;
-
-    socket.emit('guild:join', { guildId: guild.id });
-
-    const handleUpdate = () => {
-      queryClient.invalidateQueries({
-        queryKey: ['guild', { guildId: guild.id }],
-      });
-    };
-
-    socket.on(`guild:${guild.id}:update`, handleUpdate);
-
-    return () => {
-      socket.off(`guild:${guild.id}:update`);
-    };
-  }, [socket, guild, queryClient]);
-
   const { data: allTimeSlots } = useQuery({
     queryKey: ['timeSlots'],
     queryFn: fetchBattleTimeSlots,
-  });
-
-  const updateTimeSlotMutation = useMutation({
-    mutationFn: updateGuildBattleTimeSlotApi,
-    onSuccess: () => {
-      socket?.emit('guild:update', { guildId: guild.id });
-    },
-  });
-
-  const updateBattleDatesMutation = useMutation({
-    mutationFn: updateGuildBattleDatesApi,
-    onSuccess: () => {
-      socket?.emit('guild:update', { guildId: guild.id });
-    },
   });
 
   const formatTime = (seconds: number): string => {
@@ -99,14 +66,13 @@ export function GuildTimer({ userId, guild }: GuildBattleTimerProps) {
     if (!timeSlot || !dateRange.from) return -1;
 
     const now = new Date();
-    const todayDate = formatDate(now);
 
     // Check if today is within the selected range
     const isBattleDay =
       dateRange.from &&
       dateRange.to &&
-      new Date(todayDate) >= new Date(dateRange.from) &&
-      new Date(todayDate) <= new Date(dateRange.to);
+      now >= new Date(dateRange.from) &&
+      now <= new Date(dateRange.to);
 
     if (!isBattleDay) {
       setIsActive(false);
@@ -152,7 +118,7 @@ export function GuildTimer({ userId, guild }: GuildBattleTimerProps) {
       const secondsUntilStart =
         (battleHour - utcHour) * 3600 - utcMinute * 60 - utcSecond;
       setIsActive(false);
-      setNextBattleDate(new Date(todayDate));
+      setNextBattleDate(now);
       return secondsUntilStart;
     }
 
@@ -162,7 +128,7 @@ export function GuildTimer({ userId, guild }: GuildBattleTimerProps) {
       if (elapsedSeconds < GUILD_BATTLE_TIME) {
         // Battle is in progress
         setIsActive(true);
-        setNextBattleDate(new Date(todayDate));
+        setNextBattleDate(now);
         return GUILD_BATTLE_TIME - elapsedSeconds;
       }
     }
@@ -214,10 +180,6 @@ export function GuildTimer({ userId, guild }: GuildBattleTimerProps) {
     };
   }, [timeSlot, dateRange]);
 
-  const handleTimeSlotChange = (newTimeSlot: string) => {
-    updateTimeSlotMutation.mutate(newTimeSlot as GuildBattleTimeSlot);
-  };
-
   useEffect(() => {
     if (guild.battleDates) {
       setDateRange(guild.battleDates);
@@ -241,7 +203,7 @@ export function GuildTimer({ userId, guild }: GuildBattleTimerProps) {
     };
 
     setDateRange(newRange);
-    updateBattleDatesMutation.mutate(newRange);
+    onUpdateBattleDates(newRange);
   };
 
   const formatDateForDisplay = (dateString: string): string => {
@@ -269,7 +231,7 @@ export function GuildTimer({ userId, guild }: GuildBattleTimerProps) {
               <BattleTime
                 timeSlot={timeSlot}
                 allTimeSlots={allTimeSlots}
-                onTimeChange={handleTimeSlotChange}
+                onTimeChange={onUpdateTimeSlot}
               />
             )}
           </CardTitle>

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import PlayerClaim from '~/components/player-claim-page';
 import { auth } from '~/server/auth';
+import { getPlayerByUserId } from '~/server/db/query';
 
 export default async function PlayerClaimPage({
   params,
@@ -12,6 +13,12 @@ export default async function PlayerClaimPage({
 
   if (!session) {
     redirect('/api/auth/signin');
+  }
+
+  const player = await getPlayerByUserId(session.user.id);
+
+  if (player) {
+    redirect('/');
   }
 
   return <PlayerClaim token={token} />;

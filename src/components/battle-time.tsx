@@ -10,7 +10,7 @@ import {
 interface BattleTimeProps {
   timeSlot: BattleSlot['label'] | undefined;
   allTimeSlots: BattleSlot[];
-  onTimeChange: (newTimeSlot: string) => void;
+  onTimeChange: (newTimeSlot: BattleSlot['label']) => void;
 }
 
 export function BattleTime({

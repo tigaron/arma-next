@@ -2,9 +2,16 @@ import 'server-only';
 
 import { and, eq, gt, gte, sql } from 'drizzle-orm';
 import type { DateRange } from 'react-day-picker';
-import type { GuildBattleTimeSlot, PlayerColor } from '~/types';
 import { db, redis } from '.';
-import { battleSlots, colors, guilds, players, teams } from './schema';
+import {
+  type BattleSlot,
+  type Color,
+  battleSlots,
+  colors,
+  guilds,
+  players,
+  teams,
+} from './schema';
 
 export async function getBattleTimeSlots() {
   try {
@@ -20,11 +27,7 @@ export async function getPlayerByGuildId(guildId: string) {
     return await db.query.players.findMany({
       where: eq(players.guildId, guildId),
       with: {
-        user: {
-          columns: {
-            name: true,
-          },
-        },
+        user: true,
       },
     });
   } catch (error) {
@@ -65,7 +68,7 @@ export async function createDefaultGuildForUserId(userId: string) {
       let [battleSlot] = await tx.select().from(battleSlots).limit(1);
 
       if (!battleSlot) {
-        const battleSlotLabels: GuildBattleTimeSlot[] = [
+        const battleSlotLabels: BattleSlot['label'][] = [
           '21:00 – 22:00',
           '1:00 – 2:00',
           '4:00 – 5:00',
@@ -118,7 +121,7 @@ export async function createDefaultGuildForUserId(userId: string) {
         throw new Error('Failed to store guild in database');
       }
 
-      const colorLabels: PlayerColor[] = ['blue', 'yellow', 'green', 'red'];
+      const colorLabels: Color['label'][] = ['blue', 'yellow', 'green', 'red'];
       const colorRows = colorLabels.map((color, index) => ({
         label: color,
         teamId: team.id,
@@ -219,7 +222,7 @@ export async function addTeamForGuildId(guildId: string, name: string) {
         throw new Error('Failed to store team in database');
       }
 
-      const colorLabels: PlayerColor[] = ['blue', 'yellow', 'green', 'red'];
+      const colorLabels: Color['label'][] = ['blue', 'yellow', 'green', 'red'];
       const colorRows = colorLabels.map((color, index) => ({
         label: color,
         teamId: team.id,
@@ -351,7 +354,7 @@ export async function addPlayerByInviteToken(
 
 export async function updateColorsOrderByTeamId(
   teamId: string,
-  colorOrder: PlayerColor[],
+  colorOrder: Color['label'][],
 ) {
   try {
     return await db.transaction(async (tx) => {
@@ -434,7 +437,7 @@ export async function deleteTeamById(teamsId: string) {
 
 export async function updateGuildBattleSlotById(
   guildId: string,
-  timeSlot: GuildBattleTimeSlot,
+  timeSlot: BattleSlot['label'],
 ) {
   try {
     const [battleSlot] = await db

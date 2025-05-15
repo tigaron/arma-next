@@ -1,12 +1,19 @@
 import { redirect } from 'next/navigation';
 import { NewPlayerForm } from '~/components/new-player-form';
 import { auth } from '~/server/auth';
+import { getPlayerByUserId } from '~/server/db/query';
 
 export default async function NewPlayerPage() {
   const session = await auth();
 
   if (!session) {
     redirect('/api/auth/signin');
+  }
+
+  const player = await getPlayerByUserId(session.user.id);
+
+  if (player) {
+    redirect('/');
   }
 
   return (

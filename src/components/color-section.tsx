@@ -7,9 +7,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripHorizontal } from 'lucide-react';
-import type { PlayerWithName } from '~/server/api-client';
+import { COLOR_CONFIG } from '~/lib/constants';
+import type { PlayerWithUser } from '~/server/api-client';
 import type { Color } from '~/server/db/schema';
-import { COLOR_CONFIG } from '~/types';
 import { AddPlayerForm } from './add-player-form';
 import { PlayerTimerCard } from './player-timer-card';
 
@@ -18,8 +18,7 @@ interface ColorSectionProps {
   ownerId: string;
   teamId: string;
   color: Color;
-  players: PlayerWithName[];
-  onDeletePlayer: (playerId: string) => void;
+  players: PlayerWithUser[];
   onAddPlayer: (teamId: string, colorId: string, position: number) => void;
 }
 
@@ -29,7 +28,6 @@ export function ColorSection({
   teamId,
   color,
   players,
-  onDeletePlayer,
   onAddPlayer,
 }: ColorSectionProps) {
   // Ensure the color section is properly handling the drag events
@@ -101,21 +99,18 @@ export function ColorSection({
               colorLabel={color.label}
               currentUserId={currentUserId}
               ownerId={ownerId}
-              onDelete={onDeletePlayer}
             />
           ))}
         </SortableContext>
 
         {/* Add Player Button - Only visible to admin */}
         {currentUserId === ownerId && (
-          <div className="mt-4">
-            <AddPlayerForm
-              teamId={teamId}
-              colorId={color.id}
-              onAdd={onAddPlayer}
-              position={players.length}
-            />
-          </div>
+          <AddPlayerForm
+            teamId={teamId}
+            colorId={color.id}
+            onAdd={onAddPlayer}
+            position={players.length}
+          />
         )}
       </div>
     </div>

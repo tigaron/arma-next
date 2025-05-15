@@ -12,7 +12,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '~/components/ui/collapsible';
-import type { PlayerWithName, TeamWithColors } from '~/server/api-client';
+import type { PlayerWithUser, TeamWithColors } from '~/server/api-client';
 import type { Color } from '~/server/db/schema';
 import { ColorSection } from './color-section';
 
@@ -20,9 +20,8 @@ interface TeamSectionProps {
   currentUserId: string;
   ownerId: string;
   team: TeamWithColors;
-  players: PlayerWithName[];
+  players: PlayerWithUser[];
   onDeleteTeam: (team: TeamWithColors) => void;
-  onDeletePlayer: (playerId: string) => void;
   onAddPlayer: (teamId: string, colorId: string, position: number) => void;
 }
 
@@ -32,7 +31,6 @@ export function TeamSection({
   team,
   players,
   onDeleteTeam,
-  onDeletePlayer,
   onAddPlayer,
 }: TeamSectionProps) {
   const [expanded, setExpanded] = useState(team.isDefault);
@@ -110,7 +108,6 @@ export function TeamSection({
                 players={getPlayersByColor(color)}
                 currentUserId={currentUserId}
                 ownerId={ownerId}
-                onDeletePlayer={onDeletePlayer}
                 onAddPlayer={onAddPlayer}
               />
             ))}

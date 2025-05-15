@@ -11,34 +11,40 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
   type GuildWithBattleSlot,
   type PlayerWithUser,
   type TeamWithColors,
-  addPlayerApi,
-  addTeamApi,
-  deletePlayerApi,
-  deleteTeamApi,
   fetchPlayers,
   fetchTeams,
-  movePlayerApi,
-  updateColorOrderApi,
 } from '~/server/api-client';
-import type { PlayerColor } from '~/types';
-import { AddTeamForm } from './add-team-form';
+import type { Color } from '~/server/db/schema';
 import { TeamSection } from './team-section';
 
 interface CountdownTimerProps {
   player: PlayerWithUser;
   guild: GuildWithBattleSlot;
+  onDeleteTeam: (team: TeamWithColors) => void;
+  onAddPlayer: (teamId: string, colorId: string, position: number) => void;
+  onUpdateColor: (teamId: string, newColorOrder: Color['label'][]) => void;
+  onMovePlayer: (
+    activePlayerId: string,
+    targetColorId: string,
+    targetTeamId: string,
+    targetPosition: number,
+  ) => void;
 }
 
-export function CountdownTimer({ player, guild }: CountdownTimerProps) {
-  const queryClient = useQueryClient();
-
-  // Queries
+export function CountdownTimer({
+  player,
+  guild,
+  onDeleteTeam,
+  onAddPlayer,
+  onUpdateColor,
+  onMovePlayer,
+}: CountdownTimerProps) {
   const { data: teams = [] } = useQuery({
     queryKey: ['teams', { guildId: guild.id }],
     queryFn: fetchTeams,
@@ -49,90 +55,6 @@ export function CountdownTimer({ player, guild }: CountdownTimerProps) {
     queryFn: fetchPlayers,
   });
 
-  // Mutations
-  const addTeamMutation = useMutation({
-    mutationFn: addTeamApi,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['teams', { guildId: guild.id }],
-      });
-    },
-  });
-
-  const updateColorOrderMutation = useMutation({
-    mutationFn: ({
-      teamId,
-      colorOrder,
-    }: { teamId: string; colorOrder: PlayerColor[] }) =>
-      updateColorOrderApi(teamId, colorOrder),
-    onSuccess: (updatedTeam) => {
-      queryClient.setQueryData(
-        ['teams', { guildId: guild.id }],
-        (oldTeams: TeamWithColors[] = []) => {
-          return oldTeams.map((team) =>
-            team.id === updatedTeam.id ? updatedTeam : team,
-          );
-        },
-      );
-    },
-  });
-
-  const deleteTeamMutation = useMutation({
-    mutationFn: deleteTeamApi,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['teams', { guildId: guild.id }],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['players', { guildId: guild.id }],
-      });
-    },
-  });
-
-  const addPlayerMutation = useMutation({
-    mutationFn: addPlayerApi,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['teams', { guildId: guild.id }],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['players', { guildId: guild.id }],
-      });
-    },
-  });
-
-  const movePlayerMutation = useMutation({
-    mutationFn: ({
-      playerId,
-      teamId,
-      colorId,
-      position,
-    }: {
-      playerId: string;
-      teamId: string;
-      colorId: string;
-      position: number;
-    }) => movePlayerApi(playerId, teamId, colorId, position),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['teams', { guildId: guild.id }],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['players', { guildId: guild.id }],
-      });
-    },
-  });
-
-  const deletePlayerMutation = useMutation({
-    mutationFn: deletePlayerApi,
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['players', { guildId: guild.id }],
-      });
-    },
-  });
-
-  const [showAddTeamForm, setShowAddTeamForm] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeDragData, setActiveDragData] = useState<any>(null);
 
@@ -144,26 +66,6 @@ export function CountdownTimer({ player, guild }: CountdownTimerProps) {
       },
     }),
   );
-
-  const addPlayer = (teamId: string, colorId: string, position: number) => {
-    addPlayerMutation.mutate({ teamId, colorId, position });
-  };
-
-  const addTeam = (name: string) => {
-    addTeamMutation.mutate(name);
-    setShowAddTeamForm(false);
-  };
-
-  const deletePlayer = (playerId: string) => {
-    deletePlayerMutation.mutate(playerId);
-  };
-
-  const deleteTeam = (team: TeamWithColors) => {
-    // Don't allow deleting the default team
-    if (team.isDefault) return;
-
-    deleteTeamMutation.mutate(team.id);
-  };
 
   // Handle drag start
   const handleDragStart = (event: DragStartEvent) => {
@@ -214,13 +116,10 @@ export function CountdownTimer({ player, guild }: CountdownTimerProps) {
               colorOrder,
               oldIndex,
               newIndex,
-            ) as PlayerColor[];
+            ) as Color['label'][];
 
             // Update color order via dedicated API
-            updateColorOrderMutation.mutate({
-              teamId,
-              colorOrder: newColorOrder,
-            });
+            onUpdateColor(teamId, newColorOrder);
           }
         }
       }
@@ -235,12 +134,7 @@ export function CountdownTimer({ player, guild }: CountdownTimerProps) {
       const targetPosition = overData.position;
 
       // Move player to the target team and color
-      movePlayerMutation.mutate({
-        playerId: activePlayerId,
-        colorId: targetColorId,
-        teamId: targetTeamId,
-        position: targetPosition,
-      });
+      onMovePlayer(activePlayerId, targetColorId, targetTeamId, targetPosition);
     }
 
     // Reset drag state
@@ -249,53 +143,38 @@ export function CountdownTimer({ player, guild }: CountdownTimerProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Admin Add Team Button */}
-      {player.userId === guild.ownerId && (
-        <AddTeamForm
-          onAdd={addTeam}
-          onCancel={() => setShowAddTeamForm(!showAddTeamForm)}
-          isOpen={showAddTeamForm}
-        />
-      )}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="space-y-6">
+        {teams.map((team) => (
+          <TeamSection
+            key={team.id}
+            team={team}
+            players={players.filter((player) => player.teamId === team.id)}
+            currentUserId={player.userId!}
+            ownerId={guild.ownerId}
+            onDeleteTeam={onDeleteTeam}
+            onAddPlayer={onAddPlayer}
+          />
+        ))}
+      </div>
 
-      {/* Teams */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="space-y-6">
-          {teams.map((team) => (
-            <TeamSection
-              key={team.id}
-              team={team}
-              players={players.filter((player) => player.teamId === team.id)}
-              currentUserId={player.userId!}
-              ownerId={guild.ownerId}
-              onDeleteTeam={deleteTeam}
-              onDeletePlayer={deletePlayer}
-              onAddPlayer={addPlayer}
-            />
-          ))}
-        </div>
-
-        {/* Drag overlay for preview */}
-        <DragOverlay>
-          {activeId && activeDragData?.type === 'player' && (
-            <div className="rounded border border-gray-300 bg-gray-100 p-2 opacity-50">
-              Dragging:{' '}
-              {activeDragData.user?.name || activeDragData.inviteToken}
-            </div>
-          )}
-          {activeId && activeDragData?.type === 'color' && (
-            <div className="rounded border border-gray-300 bg-gray-100 p-2 opacity-50">
-              Dragging: {activeDragData.label}
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
-    </div>
+      <DragOverlay>
+        {activeId && activeDragData?.type === 'player' && (
+          <div className="rounded border border-gray-300 bg-gray-100 p-2 opacity-50">
+            Dragging: {activeDragData.user?.name || activeDragData.inviteToken}
+          </div>
+        )}
+        {activeId && activeDragData?.type === 'color' && (
+          <div className="rounded border border-gray-300 bg-gray-100 p-2 opacity-50">
+            Dragging: {activeDragData.label}
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
   );
 }

@@ -1,14 +1,10 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { redirect } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import {
-  createDefaultGuild,
-  fetchMe,
-  joinGuildByInviteCode,
-} from '~/server/api-client';
+import { createDefaultGuild, joinGuildByInviteCode } from '~/server/api-client';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -16,51 +12,41 @@ export function NewPlayerForm() {
   const queryClient = useQueryClient();
   const [inviteCode, setInviteCode] = useState('');
 
-  // Fetch the "me" data
-  const { data: me } = useQuery({
-    queryKey: ['me'],
-    queryFn: fetchMe,
-    retry: false,
-  });
-
-  // Mutation to create a default guild
   const createGuild = useMutation({
     mutationFn: createDefaultGuild,
     onSuccess: () => {
       toast.success('Successfully created a new guild!');
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      setTimeout(() => {
+        redirect('/');
+      }, 1000);
     },
     onError: (error: any) => {
-      // Show error toast
       toast.error(
         error?.message || 'Failed to create the guild. Please try again.',
       );
     },
   });
 
-  // Mutation to join a guild using an invite code
   const joinGuild = useMutation({
     mutationFn: (code: string) => joinGuildByInviteCode(code),
     onSuccess: (data) => {
-      // Show success toast
-      toast.success('Successfully joined the guild!');
-      // Redirect after showing the toast
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      queryClient.invalidateQueries({
+        queryKey: ['teams', { guildId: data.guildId }],
+      });
       queryClient.invalidateQueries({
         queryKey: ['players', { guildId: data.guildId }],
       });
+      toast.success('Successfully joined the guild!');
+      setTimeout(() => {
+        redirect('/');
+      }, 1000);
     },
     onError: (error: any) => {
-      // Show error toast
       toast.error(
         error?.message || 'Failed to join the guild. Please try again.',
       );
     },
   });
-
-  if (me) {
-    redirect('/');
-  }
 
   return (
     <div className="flex flex-col px-4 sm:px-16 gap-2">

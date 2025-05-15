@@ -7,17 +7,17 @@ import { Card } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 
 interface AddTeamFormProps {
-  onAdd: (name: string) => void;
+  onAddTeam: (name: string) => void;
   onCancel: () => void;
   isOpen: boolean;
 }
 
-export function AddTeamForm({ onAdd, onCancel, isOpen }: AddTeamFormProps) {
+export function AddTeamForm({ onAddTeam, onCancel, isOpen }: AddTeamFormProps) {
   const [name, setName] = useState('');
 
   const handleSubmit = () => {
     if (name.trim()) {
-      onAdd(name.trim());
+      onAddTeam(name.trim());
       setName('');
     }
   };

@@ -1,6 +1,7 @@
 'use client';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useMutation } from '@tanstack/react-query';
 import {
   CopyIcon,
   GripVertical,
@@ -18,16 +19,16 @@ import {
   CardHeader,
   CardTitle,
 } from '~/components/ui/card';
+import { COLOR_CONFIG } from '~/lib/constants';
 import { useSocket } from '~/providers/socket-provider';
-import type { PlayerWithName } from '~/server/api-client';
-import { COLOR_CONFIG, type PlayerColor } from '~/types';
+import { type PlayerWithUser, deletePlayerApi } from '~/server/api-client';
+import type { Color } from '~/server/db/schema';
 
 interface PlayerTimerCardProps {
   currentUserId: string;
   ownerId: string;
-  player: PlayerWithName;
-  colorLabel: PlayerColor;
-  onDelete: (playerId: string) => void;
+  player: PlayerWithUser;
+  colorLabel: Color['label'];
 }
 
 interface TimerState {
@@ -35,7 +36,6 @@ interface TimerState {
   isRunning: boolean;
   startTimestamp?: number;
   pausedDuration?: number;
-  canControl: boolean;
 }
 
 export function PlayerTimerCard({
@@ -43,7 +43,6 @@ export function PlayerTimerCard({
   ownerId,
   player,
   colorLabel,
-  onDelete,
 }: PlayerTimerCardProps) {
   const socket = useSocket();
 
@@ -89,6 +88,17 @@ export function PlayerTimerCard({
 
     return () => clearInterval(interval);
   }, [timerState]);
+
+  const deletePlayerMutation = useMutation({
+    mutationFn: deletePlayerApi,
+    onSuccess: () => {
+      socket?.emit('players:update', { guildId: player.guildId });
+    },
+  });
+
+  const deletePlayer = (playerId: string) => {
+    deletePlayerMutation.mutate(playerId);
+  };
 
   const {
     attributes,
@@ -140,7 +150,7 @@ export function PlayerTimerCard({
               variant="ghost"
               size="icon"
               className="absolute top-2 right-2 h-6 w-6 text-white hover:text-red-500 cursor-pointer"
-              onClick={() => onDelete(player.inviteToken)}
+              onClick={() => deletePlayer(player.inviteToken)}
               aria-label={`Delete ${player.user?.name ?? player.inviteToken}`}
             >
               <X className="h-4 w-4" />
@@ -158,12 +168,10 @@ export function PlayerTimerCard({
 
       <CardHeader className="pb-2">
         <CardTitle className="text-center text-lg">
-          {player.user?.name ? (
-            player.user.name
-          ) : (
+          {!player.userId ? (
             <div className="flex items-center justify-center gap-2">
               <span
-                className="truncate sm:max-w-[100px] w-[180px] text-sm font-mono"
+                className="truncate sm:max-w-[100px] w-[180px] text-sm"
                 title={player.inviteToken}
               >
                 {player.inviteToken}
@@ -182,6 +190,10 @@ export function PlayerTimerCard({
                 <CopyIcon className="h-4 w-4" />
               </Button>
             </div>
+          ) : (
+            <span className="text-sm">
+              {player.user?.name || player.user?.email || player.userId}
+            </span>
           )}
         </CardTitle>
       </CardHeader>

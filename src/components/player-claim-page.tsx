@@ -1,6 +1,6 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { redirect } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '~/components/ui/button';
@@ -8,18 +8,23 @@ import { Input } from '~/components/ui/input';
 import { joinGuildByInviteCode } from '~/server/api-client';
 
 export default function PlayerClaim({ token }: { token: string }) {
+  const queryClient = useQueryClient();
+
   const joinGuild = useMutation({
     mutationFn: (code: string) => joinGuildByInviteCode(code),
-    onSuccess: () => {
-      // Show success toast
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: ['teams', { guildId: data.guildId }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['players', { guildId: data.guildId }],
+      });
       toast.success('Successfully joined the guild!');
-      // Redirect after showing the toast
       setTimeout(() => {
         redirect('/');
-      }, 1000); // Delay to allow the toast to display
+      }, 1000);
     },
     onError: (error: any) => {
-      // Show error toast
       toast.error(
         error?.message || 'Failed to join the guild. Please try again.',
       );
