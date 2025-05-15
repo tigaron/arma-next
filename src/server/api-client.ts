@@ -1,6 +1,6 @@
 import type { DateRange } from 'react-day-picker';
 import type { GuildBattleTimeSlot, PlayerColor } from '~/types';
-import type { BattleSlot, Color, Guild, Player, Team } from './db/schema';
+import type { BattleSlot, Color, Guild, Player, Team, User } from './db/schema';
 
 export interface TeamWithColors extends Team {
   colors: Color[];
@@ -20,12 +20,16 @@ export interface PlayerWithGuildOwner extends Player {
   };
 }
 
-export interface GuildWithBattleSlot extends Guild {
-  battleSlot: BattleSlot;
+export interface PlayerWithUser extends Player {
+  user: User | null;
 }
 
-export const fetchMe = async (): Promise<PlayerWithGuildOwner> => {
-  const response = await fetch('/api/players/me');
+export interface GuildWithBattleSlot extends Guild {
+  battleSlot: BattleSlot | null;
+}
+
+export const fetchMe = async (userId: string): Promise<PlayerWithUser> => {
+  const response = await fetch(`/api/players/me?id=${userId}`);
   if (!response.ok) throw new Error('Failed to fetch me');
   const { data } = await response.json();
   return data;
@@ -57,7 +61,7 @@ export const createDefaultGuild = async (): Promise<PlayerWithName> => {
 export const joinGuildByInviteCode = async (
   inviteToken: string,
 ): Promise<PlayerWithName> => {
-  const response = await fetch('/api/players/claim', {
+  const response = await fetch('/api/players/new', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inviteToken }),
@@ -114,13 +118,21 @@ export const deletePlayerApi = async (playerId: string): Promise<void> => {
   if (!response.ok) throw new Error('Failed to delete player');
 };
 
-export const fetchGuildBattleTimeSlot =
-  async (): Promise<GuildWithBattleSlot> => {
-    const response = await fetch('/api/guilds/times');
-    if (!response.ok) throw new Error('Failed to fetch guild battle time slot');
-    const { data } = await response.json();
-    return data;
-  };
+export const fetchBattleTimeSlots = async (): Promise<BattleSlot[]> => {
+  const response = await fetch('/api/guilds/times');
+  if (!response.ok) throw new Error('Failed to fetch battle time slot data');
+  const { data } = await response.json();
+  return data;
+};
+
+export const fetchGuild = async (
+  guildId: string,
+): Promise<GuildWithBattleSlot> => {
+  const response = await fetch(`/api/guilds?guildId=${guildId}`);
+  if (!response.ok) throw new Error('Failed to fetch guild data');
+  const { data } = await response.json();
+  return data;
+};
 
 export const updateGuildBattleTimeSlotApi = async (
   timeSlot: GuildBattleTimeSlot,

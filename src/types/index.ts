@@ -12,11 +12,11 @@ export const COLOR_CONFIG = {
   },
   yellow: {
     label: 'Yellow',
-    bgClass: 'bg-lime-400',
-    borderClass: 'border-lime',
-    headerBgClass: 'bg-lime-600',
+    bgClass: 'bg-yellow-400',
+    borderClass: 'border-yellow',
+    headerBgClass: 'bg-yellow-600',
     textClass: 'text-white',
-    dragHandleClass: 'hover:bg-lime-200',
+    dragHandleClass: 'hover:bg-yellow-200',
   },
   green: {
     label: 'Green',

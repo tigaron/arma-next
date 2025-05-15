@@ -6,6 +6,15 @@ import type { GuildBattleTimeSlot, PlayerColor } from '~/types';
 import { db, redis } from '.';
 import { battleSlots, colors, guilds, players, teams } from './schema';
 
+export async function getBattleTimeSlots() {
+  try {
+    return await db.select().from(battleSlots);
+  } catch (error) {
+    console.error('Failed to get battle time slot from database');
+    throw error;
+  }
+}
+
 export async function getPlayerByGuildId(guildId: string) {
   try {
     return await db.query.players.findMany({
@@ -41,15 +50,7 @@ export async function getPlayerByUserId(userId: string) {
     return await db.query.players.findFirst({
       where: eq(players.userId, userId),
       with: {
-        guild: {
-          with: {
-            battleSlot: true,
-          },
-          columns: {
-            ownerId: true,
-            battleDates: true,
-          },
-        },
+        user: true,
       },
     });
   } catch (error) {

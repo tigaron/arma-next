@@ -13,8 +13,9 @@ import {
 import { arrayMove } from '@dnd-kit/sortable';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { DateRange } from 'react-day-picker';
 import {
+  type GuildWithBattleSlot,
+  type PlayerWithUser,
   type TeamWithColors,
   addPlayerApi,
   addTeamApi,
@@ -25,36 +26,26 @@ import {
   movePlayerApi,
   updateColorOrderApi,
 } from '~/server/api-client';
-import type { GuildBattleTimeSlot, PlayerColor } from '~/types';
+import type { PlayerColor } from '~/types';
 import { AddTeamForm } from './add-team-form';
-import { GuildBattleTimer } from './guild-battle-timer';
 import { TeamSection } from './team-section';
 
 interface CountdownTimerProps {
-  guildId: string;
-  currentUserId: string;
-  ownerId: string;
-  timeSlot: GuildBattleTimeSlot;
-  battleDates: DateRange;
+  player: PlayerWithUser;
+  guild: GuildWithBattleSlot;
 }
 
-export function CountdownTimer({
-  guildId,
-  currentUserId,
-  ownerId,
-  timeSlot,
-  battleDates,
-}: CountdownTimerProps) {
+export function CountdownTimer({ player, guild }: CountdownTimerProps) {
   const queryClient = useQueryClient();
 
   // Queries
   const { data: teams = [] } = useQuery({
-    queryKey: ['teams', { guildId }],
+    queryKey: ['teams', { guildId: guild.id }],
     queryFn: fetchTeams,
   });
 
   const { data: players = [] } = useQuery({
-    queryKey: ['players', { guildId }],
+    queryKey: ['players', { guildId: guild.id }],
     queryFn: fetchPlayers,
   });
 
@@ -62,7 +53,9 @@ export function CountdownTimer({
   const addTeamMutation = useMutation({
     mutationFn: addTeamApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams', { guildId }] });
+      queryClient.invalidateQueries({
+        queryKey: ['teams', { guildId: guild.id }],
+      });
     },
   });
 
@@ -74,7 +67,7 @@ export function CountdownTimer({
       updateColorOrderApi(teamId, colorOrder),
     onSuccess: (updatedTeam) => {
       queryClient.setQueryData(
-        ['teams', { guildId }],
+        ['teams', { guildId: guild.id }],
         (oldTeams: TeamWithColors[] = []) => {
           return oldTeams.map((team) =>
             team.id === updatedTeam.id ? updatedTeam : team,
@@ -87,15 +80,24 @@ export function CountdownTimer({
   const deleteTeamMutation = useMutation({
     mutationFn: deleteTeamApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams', { guildId }] });
-      queryClient.invalidateQueries({ queryKey: ['players', { guildId }] });
+      queryClient.invalidateQueries({
+        queryKey: ['teams', { guildId: guild.id }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['players', { guildId: guild.id }],
+      });
     },
   });
 
   const addPlayerMutation = useMutation({
     mutationFn: addPlayerApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['players', { guildId }] });
+      queryClient.invalidateQueries({
+        queryKey: ['teams', { guildId: guild.id }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['players', { guildId: guild.id }],
+      });
     },
   });
 
@@ -112,14 +114,21 @@ export function CountdownTimer({
       position: number;
     }) => movePlayerApi(playerId, teamId, colorId, position),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['players', { guildId }] });
+      queryClient.invalidateQueries({
+        queryKey: ['teams', { guildId: guild.id }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['players', { guildId: guild.id }],
+      });
     },
   });
 
   const deletePlayerMutation = useMutation({
     mutationFn: deletePlayerApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['players', { guildId }] });
+      queryClient.invalidateQueries({
+        queryKey: ['players', { guildId: guild.id }],
+      });
     },
   });
 
@@ -241,23 +250,13 @@ export function CountdownTimer({
 
   return (
     <div className="space-y-6">
-      {/* Guild Battle Timer */}
-      <GuildBattleTimer
-        timeSlot={timeSlot}
-        battleDates={battleDates}
-        isAdmin={currentUserId === ownerId}
-        guildId={guildId}
-      />
-
       {/* Admin Add Team Button */}
-      {currentUserId === ownerId && (
-        <div className="mb-4">
-          <AddTeamForm
-            onAdd={addTeam}
-            onCancel={() => setShowAddTeamForm(!showAddTeamForm)}
-            isOpen={showAddTeamForm}
-          />
-        </div>
+      {player.userId === guild.ownerId && (
+        <AddTeamForm
+          onAdd={addTeam}
+          onCancel={() => setShowAddTeamForm(!showAddTeamForm)}
+          isOpen={showAddTeamForm}
+        />
       )}
 
       {/* Teams */}
@@ -273,8 +272,8 @@ export function CountdownTimer({
               key={team.id}
               team={team}
               players={players.filter((player) => player.teamId === team.id)}
-              currentUserId={currentUserId}
-              ownerId={ownerId}
+              currentUserId={player.userId!}
+              ownerId={guild.ownerId}
               onDeleteTeam={deleteTeam}
               onDeletePlayer={deletePlayer}
               onAddPlayer={addPlayer}

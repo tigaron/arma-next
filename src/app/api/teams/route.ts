@@ -4,6 +4,7 @@ import {
   addTeamForGuildId,
   checkIsDefaultTeam,
   deleteTeamById,
+  getGuildById,
   getPlayerByUserId,
   getTeamsByGuildId,
 } from '~/server/db/query';
@@ -32,7 +33,7 @@ export async function GET() {
       );
     }
 
-    if (!player.guildId || !player.guild) {
+    if (!player.guildId) {
       return NextResponse.json(
         {
           success: false,
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!player.guildId || !player.guild) {
+    if (!player.guildId) {
       return NextResponse.json(
         {
           success: false,
@@ -107,7 +108,18 @@ export async function POST(request: Request) {
       );
     }
 
-    if (player.userId !== player.guild.ownerId) {
+    const guild = await getGuildById(player.guildId);
+    if (!guild) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Guild not found',
+        },
+        { status: 404 },
+      );
+    }
+
+    if (player.userId !== guild.ownerId) {
       return NextResponse.json(
         {
           success: false,
@@ -173,7 +185,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    if (!player.guildId || !player.guild) {
+    if (!player.guildId) {
       return NextResponse.json(
         {
           success: false,
@@ -183,7 +195,18 @@ export async function DELETE(request: Request) {
       );
     }
 
-    if (player.userId !== player.guild.ownerId) {
+    const guild = await getGuildById(player.guildId);
+    if (!guild) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Guild not found',
+        },
+        { status: 404 },
+      );
+    }
+
+    if (player.userId !== guild.ownerId) {
       return NextResponse.json(
         {
           success: false,

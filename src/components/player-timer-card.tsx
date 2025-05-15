@@ -173,7 +173,7 @@ export function PlayerTimerCard({
                 size="sm"
                 onClick={() =>
                   navigator.clipboard.writeText(
-                    `${window.location.origin}/players/claim/${player.inviteToken}`,
+                    `${window.location.origin}/players/new/${player.inviteToken}`,
                   )
                 }
                 aria-label="Copy invite link"

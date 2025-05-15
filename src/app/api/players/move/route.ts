@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { auth } from '~/server/auth';
-import { getPlayerByUserId, updatePlayerPositionById } from '~/server/db/query';
+import {
+  getGuildById,
+  getPlayerByUserId,
+  updatePlayerPositionById,
+} from '~/server/db/query';
 
 export async function PUT(request: Request) {
   try {
@@ -26,7 +30,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    if (!player.guildId || !player.guild) {
+    if (!player.guildId) {
       return NextResponse.json(
         {
           success: false,
@@ -36,7 +40,18 @@ export async function PUT(request: Request) {
       );
     }
 
-    if (player.userId !== player.guild.ownerId) {
+    const guild = await getGuildById(player.guildId);
+    if (!guild) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Guild not found',
+        },
+        { status: 404 },
+      );
+    }
+
+    if (player.userId !== guild.ownerId) {
       return NextResponse.json(
         {
           success: false,
@@ -47,7 +62,6 @@ export async function PUT(request: Request) {
     }
 
     const { playerId, teamId, colorId, position } = await request.json();
-    console.log({ playerId, teamId, colorId, position });
 
     if (
       !playerId ||

@@ -1,51 +1,35 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays } from 'date-fns';
-import { AlertCircle, CalendarIcon } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { Alert, AlertDescription } from '~/components/ui/alert';
-import { Button } from '~/components/ui/button';
-import { Calendar } from '~/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '~/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
 import { useSocket } from '~/providers/socket-provider';
 import {
+  type GuildWithBattleSlot,
+  fetchBattleTimeSlots,
   updateGuildBattleDatesApi,
   updateGuildBattleTimeSlotApi,
 } from '~/server/api-client';
 import {
   GUILD_BATTLE_TIME,
-  GUILD_BATTLE_TIME_SLOTS,
   type GuildBattleTimeSlot,
   formatDate,
   timeSlotToUTCHours,
 } from '~/types';
+import { BattleCalendar } from './battle-calendar';
+import { BattleTime } from './battle-time';
+import { Skeleton } from './ui/skeleton';
 
 interface GuildBattleTimerProps {
-  timeSlot: GuildBattleTimeSlot;
-  battleDates: DateRange;
-  isAdmin: boolean;
-  guildId: string;
+  userId: string;
+  guild: GuildWithBattleSlot;
 }
-export function GuildBattleTimer({
-  timeSlot,
-  battleDates,
-  isAdmin,
-  guildId,
-}: GuildBattleTimerProps) {
+
+export function GuildTimer({ userId, guild }: GuildBattleTimerProps) {
   const queryClient = useQueryClient();
   const socket = useSocket();
   const [remainingTime, setRemainingTime] = useState(0);
@@ -53,41 +37,49 @@ export function GuildBattleTimer({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [nextBattleDate, setNextBattleDate] = useState<Date | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: battleDates.from
-      ? new Date(new Date(battleDates.from).setUTCHours(0, 0, 0, 0))
-      : undefined,
-    to: battleDates.to
-      ? new Date(new Date(battleDates.to).setUTCHours(23, 59, 59, 999))
-      : undefined,
+    from: undefined,
+    to: undefined,
   });
+  const [timeSlot, setTimeSlot] = useState<GuildBattleTimeSlot | undefined>(
+    undefined,
+  );
+
+  const isAdmin = userId === guild.ownerId;
 
   useEffect(() => {
     if (!socket) return;
 
-    socket.emit('guild:join', { guildId });
+    socket.emit('guild:join', { guildId: guild.id });
 
     const handleUpdate = () => {
-      queryClient.invalidateQueries({ queryKey: ['me'] });
+      queryClient.invalidateQueries({
+        queryKey: ['guild', { guildId: guild.id }],
+      });
     };
 
-    socket.on(`guild:${guildId}:update`, handleUpdate);
+    socket.on(`guild:${guild.id}:update`, handleUpdate);
 
     return () => {
-      socket.off(`guild:${guildId}:update`);
+      socket.off(`guild:${guild.id}:update`);
     };
-  }, [socket, guildId, queryClient]);
+  }, [socket, guild, queryClient]);
+
+  const { data: allTimeSlots } = useQuery({
+    queryKey: ['timeSlots'],
+    queryFn: fetchBattleTimeSlots,
+  });
 
   const updateTimeSlotMutation = useMutation({
     mutationFn: updateGuildBattleTimeSlotApi,
     onSuccess: () => {
-      socket?.emit('guild:update', { guildId });
+      socket?.emit('guild:update', { guildId: guild.id });
     },
   });
 
   const updateBattleDatesMutation = useMutation({
     mutationFn: updateGuildBattleDatesApi,
     onSuccess: () => {
-      socket?.emit('guild:update', { guildId });
+      socket?.emit('guild:update', { guildId: guild.id });
     },
   });
 
@@ -220,11 +212,21 @@ export function GuildBattleTimer({
         clearInterval(timerRef.current);
       }
     };
-  }, [timeSlot, battleDates]);
+  }, [timeSlot, dateRange]);
 
   const handleTimeSlotChange = (newTimeSlot: string) => {
     updateTimeSlotMutation.mutate(newTimeSlot as GuildBattleTimeSlot);
   };
+
+  useEffect(() => {
+    if (guild.battleDates) {
+      setDateRange(guild.battleDates);
+    }
+
+    if (guild.battleSlot?.label) {
+      setTimeSlot(guild.battleSlot.label);
+    }
+  }, [guild]);
 
   const handleDayClick = (day: Date) => {
     const startDate = new Date(day);
@@ -252,69 +254,27 @@ export function GuildBattleTimer({
     });
   };
 
-  const formatDateRange = (): string => {
-    if (!dateRange.from) return 'No dates selected';
-
-    const startDate = formatDateForDisplay(formatDate(dateRange.from));
-
-    if (!dateRange.to) return startDate;
-
-    const endDate = formatDateForDisplay(formatDate(dateRange.to));
-    return `${startDate} - ${endDate}`;
-  };
-
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="grid sm:grid-cols-2 grid-cols-1 gap-2">
-          {isAdmin && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="sm:w-[180px] w-full mr-auto justify-start  cursor-pointer"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  <span>{formatDateRange()}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  timeZone="UTC"
-                  selected={dateRange}
-                  onDayClick={handleDayClick}
-                  numberOfMonths={1}
-                  disabled={{
-                    before: new Date(),
-                  }}
-                  modifiers={{
-                    selected: dateRange,
-                    range_start: dateRange?.from,
-                    range_end: dateRange?.to,
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
-          )}
-          {isAdmin && (
-            <Select
-              onValueChange={handleTimeSlotChange}
-              defaultValue={timeSlot}
-            >
-              <SelectTrigger className="sm:w-[180px] w-full ml-auto  cursor-pointer">
-                <SelectValue placeholder="Select time" />
-              </SelectTrigger>
-              <SelectContent>
-                {GUILD_BATTLE_TIME_SLOTS.map((slot) => (
-                  <SelectItem key={slot} value={slot}>
-                    {slot}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </CardTitle>
-      </CardHeader>
+      {isAdmin && (
+        <CardHeader>
+          <CardTitle className="grid sm:grid-cols-2 grid-cols-1 gap-2">
+            <BattleCalendar
+              battleDates={dateRange}
+              onDayClick={handleDayClick}
+            />
+            {!allTimeSlots?.length ? (
+              <Skeleton className="h-8 sm:w-[180px] w-full ml-auto" />
+            ) : (
+              <BattleTime
+                timeSlot={timeSlot}
+                allTimeSlots={allTimeSlots}
+                onTimeChange={handleTimeSlotChange}
+              />
+            )}
+          </CardTitle>
+        </CardHeader>
+      )}
       <CardContent>
         <div className="flex flex-col items-center justify-center mt-1">
           {!timeSlot || !dateRange.from ? (

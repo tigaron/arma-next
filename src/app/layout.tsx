@@ -8,8 +8,9 @@ import { SocketProvider } from '~/providers/socket-provider';
 import { ThemeProvider } from '~/providers/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Armageddon Battle Timer',
-  description: 'A customizable battle timer application',
+  title: 'Armageddon Timer',
+  description:
+    'Easily monitor your team members timer during Master of Garden Armageddon battle',
   icons: [{ rel: 'icon', url: '/favicon.ico' }],
 };
 

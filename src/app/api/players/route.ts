@@ -3,6 +3,7 @@ import { auth } from '~/server/auth';
 import {
   addPlayerForGuildId,
   deletePlayerById,
+  getGuildById,
   getPlayerByGuildId,
   getPlayerByInviteToken,
   getPlayerByUserId,
@@ -32,7 +33,7 @@ export async function GET() {
       );
     }
 
-    if (!player.guildId || !player.guild) {
+    if (!player.guildId) {
       return NextResponse.json(
         {
           success: false,
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!player.guildId || !player.guild) {
+    if (!player.guildId) {
       return NextResponse.json(
         {
           success: false,
@@ -108,7 +109,18 @@ export async function POST(request: Request) {
       );
     }
 
-    if (player.userId !== player.guild.ownerId) {
+    const guild = await getGuildById(player.guildId);
+    if (!guild) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Guild not found',
+        },
+        { status: 404 },
+      );
+    }
+
+    if (player.userId !== guild.ownerId) {
       return NextResponse.json(
         {
           success: false,
@@ -131,7 +143,7 @@ export async function POST(request: Request) {
 
     const newPlayer = await addPlayerForGuildId(
       player.guildId,
-      player.guild.ownerId,
+      guild.ownerId,
       teamId,
       colorId,
       position,
@@ -181,7 +193,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    if (!player.guildId || !player.guild) {
+    if (!player.guildId) {
       return NextResponse.json(
         {
           success: false,
@@ -191,7 +203,18 @@ export async function DELETE(request: Request) {
       );
     }
 
-    if (player.userId !== player.guild.ownerId) {
+    const guild = await getGuildById(player.guildId);
+    if (!guild) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Guild not found',
+        },
+        { status: 404 },
+      );
+    }
+
+    if (player.userId !== guild.ownerId) {
       return NextResponse.json(
         {
           success: false,
@@ -215,7 +238,7 @@ export async function DELETE(request: Request) {
     }
 
     const [playerToDelete] = await getPlayerByInviteToken(id);
-    if (player.guild.ownerId === playerToDelete?.userId) {
+    if (guild.ownerId === playerToDelete?.userId) {
       return NextResponse.json(
         {
           success: false,

@@ -1,12 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '~/server/auth';
-import {
-  getGuildById,
-  getPlayerByUserId,
-  updateGuildBattleDates,
-} from '~/server/db/query';
+import { getGuildById, getPlayerByUserId } from '~/server/db/query';
 
-export async function PUT(request: Request) {
+export async function GET() {
   try {
     const session = await auth();
     if (!session) {
@@ -41,6 +37,7 @@ export async function PUT(request: Request) {
     }
 
     const guild = await getGuildById(player.guildId);
+
     if (!guild) {
       return NextResponse.json(
         {
@@ -51,32 +48,11 @@ export async function PUT(request: Request) {
       );
     }
 
-    if (player.userId !== guild.ownerId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Forbidden',
-        },
-        { status: 403 },
-      );
-    }
-
-    const { battleDates } = await request.json();
-    if (!battleDates) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'timeSlot is required',
-        },
-        { status: 400 },
-      );
-    }
-
-    await updateGuildBattleDates(player.guildId, battleDates);
     return NextResponse.json(
       {
         success: true,
-        message: 'Battle time slot data updated',
+        message: 'Guild data found',
+        data: guild,
       },
       { status: 200 },
     );
@@ -85,7 +61,7 @@ export async function PUT(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: 'Failed to update battle time data',
+        message: 'Failed to fetch player data',
       },
       { status: 500 },
     );

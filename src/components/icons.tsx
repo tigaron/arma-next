@@ -1,17 +1,3 @@
-'use client';
-import { signOut } from 'next-auth/react';
-import { useTheme } from 'next-themes';
-import Image from 'next/image';
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '~/components/ui/dropdown-menu';
-import type { PlayerWithGuildOwner } from '~/server/api-client';
-
 export const LoaderIcon = ({ size = 16 }: { size?: number }) => {
   return (
     <svg
@@ -86,49 +72,3 @@ export const LoaderIcon = ({ size = 16 }: { size?: number }) => {
     </svg>
   );
 };
-
-export function UserNav({ user }: { user: PlayerWithGuildOwner }) {
-  const { setTheme, theme } = useTheme();
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <div className="bg-background cursor-pointer">
-          <Image
-            src={`https://avatar.vercel.sh/${user.userId}.svg?text=Hi`}
-            alt={user.userId ?? 'User Avatar'}
-            width={30}
-            height={30}
-            className="rounded-full"
-          />
-        </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        side="bottom"
-        align="end"
-        className="w-[--radix-popper-anchor-width]"
-      >
-        <DropdownMenuItem
-          className="cursor-pointer"
-          onSelect={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        >
-          {`Toggle ${theme === 'light' ? 'dark' : 'light'} mode`}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <button
-            type="button"
-            className="w-full cursor-pointer"
-            onClick={() => {
-              signOut({
-                redirectTo: '/',
-              });
-            }}
-          >
-            {'Sign out'}
-          </button>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
